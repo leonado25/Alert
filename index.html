@@ -102,9 +102,22 @@
         siren.play().then(() => { siren.pause(); siren.currentTime = 0; audioEnabled = true; document.getElementById('startOverlay').style.display = 'none'; });
     });
 
-    onValue(ref(database, 'Settings'), (snap) => {
+  onValue(ref(database, 'Settings'), (snap) => {
         settings = snap.val() || {};
         document.getElementById('villageDisplay').innerText = settings.VillageName || "Smart Village";
+        
+        // --- ส่วนที่เพิ่มกลับเข้าไป: ลอจิกเปลี่ยนธีม ---
+        const mode = settings.Theme || 'dark';
+        const hour = new Date().getHours();
+        const isDark = mode === 'dark' || (mode === 'auto' && (hour < 6 || hour >= 18));
+        
+        if (isDark) {
+            document.body.classList.remove('light-mode');
+        } else {
+            document.body.classList.add('light-mode');
+        }
+        // ------------------------------------------
+
         renderHouses();
     });
 
@@ -255,5 +268,6 @@
 </script>
 </body>
 </html>
+
 
 

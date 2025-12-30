@@ -62,7 +62,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, onValue, set, push, serverTimestamp, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyBGVarHKqwjhNR_BGANj8CnSWahIHtJNiM",
@@ -77,7 +77,8 @@
     const database = getDatabase(app);
     let settings = {};
     let localStatus = {}; 
-    let lastFirebaseData = {}; // เก็บข้อมูลล่าสุดจากบอร์ด
+    let lastFirebaseData = {};
+    let eventStartTimes = {}; // เก็บเวลาที่เริ่มเกิดเหตุของแต่ละหลัง
     let countdowns = {};
     let audioEnabled = false;
 
@@ -92,9 +93,26 @@
         renderHouses();
     });
 
+    // ฟังค่าสถิติจาก History (ถ้ามีข้อมูล)
+    onValue(ref(database, 'History'), (snap) => {
+        const historyData = snap.val() || {};
+        const now = new Date();
+        let monthCount = 0;
+        let yearCount = 0;
+
+        Object.values(historyData).forEach(event => {
+            const eventDate = new Date(event.timestamp);
+            if (eventDate.getFullYear() === now.getFullYear()) {
+                yearCount++;
+                if (eventDate.getMonth() === now.getMonth()) monthCount++;
+            }
+        });
+        document.getElementById('monthEvents').innerText = monthCount + " ครั้ง";
+        document.getElementById('yearEvents').innerText = yearCount + " ครั้ง";
+    });
+
     function renderHouses() {
-        const grid = document.getElementById('villageGrid'); 
-        grid.innerHTML = "";
+        const grid = document.getElementById('villageGrid'); grid.innerHTML = "";
         for(let i=1; i<=settings.TotalHouses; i++){
             const id = `House${i}`;
             const name = (settings.HouseNames && settings.HouseNames[id]) || `หลังที่ ${i}`;
@@ -127,70 +145,46 @@
         listenHouses();
     }
 
-    // ฟังก์ชันสำหรับวาดสถานะ UI ใหม่ทั้งหมด
     function refreshUI() {
         let alerts = [];
         let shouldPlaySiren = false;
-
         for(let i=1; i<=settings.TotalHouses; i++){
             const id = 'House' + i;
             const card = document.getElementById('card-' + id);
             const txt = document.getElementById('txt-' + id);
             if(!card) continue;
-
             const firebaseStatus = lastFirebaseData[id] || 0;
 
-            // LATCH LOGIC
             if(firebaseStatus == 1 && localStatus[id] !== 'checking') {
                 localStatus[id] = 'alarm';
+                if(!eventStartTimes[id]) eventStartTimes[id] = new Date().toISOString();
             }
 
             if(localStatus[id] === 'alarm') {
-                card.className = 'house-card alarm';
-                txt.innerText = "แจ้งเตือน";
-                shouldPlaySiren = true;
+                card.className = 'house-card alarm'; txt.innerText = "แจ้งเตือน";
+                shouldPlaySiren = true; alerts.push((settings.HouseNames && settings.HouseNames[id]) || 'หลังที่ '+i);
+            } else if(localStatus[id] === 'checking') {
+                card.className = 'house-card checking'; txt.innerText = "กำลังเข้าตรวจสอบ...";
                 alerts.push((settings.HouseNames && settings.HouseNames[id]) || 'หลังที่ '+i);
-            } 
-            else if(localStatus[id] === 'checking') {
-                card.className = 'house-card checking';
-                txt.innerText = "กำลังเข้าตรวจสอบ...";
-                alerts.push((settings.HouseNames && settings.HouseNames[id]) || 'หลังที่ '+i);
-            } 
-            else {
-                card.className = 'house-card';
-                txt.innerText = "ปกติ";
+            } else {
+                card.className = 'house-card'; txt.innerText = "ปกติ";
             }
         }
-
-        // อัปเดตแถบแดงด้านบน
         const alertBox = document.getElementById('quickAlert');
-        if(alerts.length > 0) {
-            alertBox.style.display = 'block';
-            document.getElementById('alertList').innerText = alerts.join(', ');
-        } else {
-            alertBox.style.display = 'none';
-        }
+        if(alerts.length > 0) { alertBox.style.display = 'block'; document.getElementById('alertList').innerText = alerts.join(', '); }
+        else { alertBox.style.display = 'none'; }
 
-        // อัปเดตเสียงไซเรน
         const siren = document.getElementById('siren');
-        if(shouldPlaySiren && audioEnabled) {
-            if(siren.paused) siren.play().catch(()=>{});
-        } else {
-            siren.pause();
-            siren.currentTime = 0;
-        }
+        if(shouldPlaySiren && audioEnabled) { if(siren.paused) siren.play().catch(()=>{}); }
+        else { siren.pause(); siren.currentTime = 0; }
     }
 
     function listenHouses() {
-        onValue(ref(database, 'Houses'), (snap) => {
-            lastFirebaseData = snap.val() || {};
-            refreshUI();
-        });
+        onValue(ref(database, 'Houses'), (snap) => { lastFirebaseData = snap.val() || {}; refreshUI(); });
     }
 
     window.startChecking = (id, minutes) => {
-        localStatus[id] = 'checking';
-        refreshUI(); // สั่งรีเฟรชเสียงและแถบทันที
+        localStatus[id] = 'checking'; refreshUI();
         if(countdowns[id]) clearInterval(countdowns[id]);
         let timeLeft = minutes * 60;
         const timerEl = document.getElementById(`timer-${id}`);
@@ -200,9 +194,7 @@
             timerEl.innerHTML = `<i class="fas fa-hourglass-half"></i> เหลือเวลาตรวจสอบ: ${m}:${s < 10 ? '0' : ''}${s}`;
             if (timeLeft <= 0) {
                 clearInterval(countdowns[id]); timerEl.style.display = 'none';
-                get(ref(database, 'Houses/'+id)).then((snap) => { 
-                    if(snap.val() == 1) { delete localStatus[id]; refreshUI(); } 
-                });
+                get(ref(database, 'Houses/'+id)).then((snap) => { if(snap.val() == 1) { delete localStatus[id]; refreshUI(); } });
             }
             timeLeft--;
         }, 1000);
@@ -219,20 +211,26 @@
         const logText = document.getElementById('log-'+id).value;
         if(!logText.trim()) { alert("⚠️ ไม่สามารถเว้นว่างได้!"); return; }
         
-        // ล้างสถานะ Latch ออก
-        delete localStatus[id];
-        if(countdowns[id]) clearInterval(countdowns[id]);
-        
-        // รีเซ็ต UI ของการ์ด
-        document.getElementById('panel-step-2-'+id).style.display = 'none';
-        document.getElementById('panel-step-1-'+id).style.display = 'block';
-        document.getElementById('timer-'+id).style.display = 'none';
-        document.getElementById('log-'+id).value = "";
-
-        // สำคัญ: สั่งรีเฟรช UI ทั้งระบบเพื่อล้างแถบแดงและเสียงทันที
-        refreshUI();
-        
-        alert("✅ บันทึกและปิดระบบแจ้งเตือนเรียบร้อย");
+        // --- ส่วนการส่งข้อมูลลง History ---
+        const historyRef = ref(database, 'History');
+        const newEventRef = push(historyRef);
+        set(newEventRef, {
+            houseName: (settings.HouseNames && settings.HouseNames[id]) || id,
+            startTime: eventStartTimes[id] || new Date().toISOString(),
+            endTime: new Date().toISOString(),
+            log: logText,
+            timestamp: serverTimestamp()
+        }).then(() => {
+            delete localStatus[id];
+            delete eventStartTimes[id];
+            if(countdowns[id]) clearInterval(countdowns[id]);
+            document.getElementById('panel-step-2-'+id).style.display = 'none';
+            document.getElementById('panel-step-1-'+id).style.display = 'block';
+            document.getElementById('timer-'+id).style.display = 'none';
+            document.getElementById('log-'+id).value = "";
+            refreshUI();
+            alert("✅ บันทึกประวัติและปิดระบบเรียบร้อย");
+        });
     };
 
     window.scrollToAlarm = () => {

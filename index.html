@@ -15,18 +15,16 @@
         .stat-card { background: var(--card); padding: 15px; border-radius: 15px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
         .stat-val { font-size: 1.4rem; font-weight: 600; color: var(--primary); }
         .houses-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .house-card { background: var(--card); border-radius: 20px; padding: 20px; border: 2px solid transparent; transition: 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .house-card { background: var(--card); border-radius: 20px; padding: 20px; border: 2px solid transparent; transition: 0.3s; position: relative; }
         .house-card.alert { border-color: var(--danger); animation: pulse 2s infinite; }
         .house-card.solving { border-color: var(--warning); }
         .btn-action { width: 100%; padding: 12px; border: none; border-radius: 10px; font-family: 'Prompt'; font-weight: 600; cursor: pointer; margin-top: 10px; }
-        .input-log { width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 10px; border-radius: 8px; margin-bottom: 8px; box-sizing: border-box; }
+        .input-log { width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 10px; border-radius: 8px; margin-bottom: 8px; box-sizing: border-box; font-family: 'Prompt'; }
         .light-mode .input-log { background: #fff; color: #000; border-color: #ccc; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 77, 77, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0); } }
     </style>
 </head>
-<body>
-
-    <div class="header">
+<body onclick="document.getElementById('sirenSound').pause()"> <div class="header">
         <h1 id="villageDisplay">Smart Village</h1>
     </div>
 
@@ -55,116 +53,101 @@
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
     const siren = document.getElementById('sirenSound');
+    
     let settings = {};
+    let localSolving = {}; // เก็บสถานะกดปุ่ม "เข้าระงับเหตุ" ไว้ในเครื่อง
     let eventStartTimes = {};
 
-    // โหลด Settings ก่อน เพื่อหาจำนวนบ้าน
+    // 1. โหลดการตั้งค่า
     onValue(ref(database, 'Settings'), (snap) => {
         settings = snap.val() || {};
         document.getElementById('villageDisplay').innerText = settings.VillageName || "Smart Village";
-        
-        const mode = settings.Theme || 'dark';
-        const isDark = mode === 'dark' || (mode === 'auto' && (new Date().getHours() < 6 || new Date().getHours() >= 18));
+        const isDark = settings.Theme !== 'light';
         document.body.className = isDark ? '' : 'light-mode';
-
-        // พอได้ Settings แล้ว ค่อยเริ่มฟังค่าบ้าน
-        startApp();
     });
 
-    function startApp() {
-        onValue(ref(database, 'Houses'), (snap) => {
-            const housesData = snap.val() || {};
-            const container = document.getElementById('housesContainer');
-            container.innerHTML = '';
-            let hasAlert = false;
+    // 2. ฟังข้อมูลบ้านแบบครอบคลุมทุกลอจิก
+    onValue(ref(database, 'Houses'), (snap) => {
+        const housesData = snap.val() || {};
+        const container = document.getElementById('housesContainer');
+        container.innerHTML = '';
+        let hasAnyAlert = false;
 
-            // วนลูปตามจำนวนบ้านที่ตั้งไว้ในหน้า Settings (TotalHouses)
-            const total = parseInt(settings.TotalHouses) || 10;
-            for (let i = 1; i <= total; i++) {
-                const id = `House${i}`;
-                const data = housesData[id];
-                
-                // เช็คสถานะ (รองรับทั้งแบบเลขตรงๆ และแบบ Object)
-                let status = 0;
-                if (typeof data === 'object' && data !== null) status = data.Status;
-                else if (data !== undefined) status = data;
+        const total = parseInt(settings.TotalHouses) || 10;
+        for (let i = 1; i <= total; i++) {
+            const id = `House${i}`;
+            const data = housesData[id];
+            
+            // อ่านค่าสถานะ: รองรับทั้ง 1, 0 หรือ {Status: 1}
+            let rawStatus = 0;
+            if (typeof data === 'object' && data !== null) rawStatus = data.Status || 0;
+            else rawStatus = data || 0;
 
-                const isAlert = status == 1;
-                const isSolving = status == 2;
-                const houseName = (settings.HouseNames && settings.HouseNames[id]) || `บ้านหลังที่ ${i}`;
+            const isAlert = rawStatus == 1; // บอร์ดส่งมาว่าช็อต
+            const isSolving = localSolving[id] === true; // เรากดปุ่มในหน้าจอ
 
-                if (isAlert) {
-                    hasAlert = true;
-                    if (!eventStartTimes[id]) eventStartTimes[id] = new Date().toISOString();
-                }
-
-                const card = document.createElement('div');
-                card.className = `house-card ${isAlert ? 'alert' : ''} ${isSolving ? 'solving' : ''}`;
-                card.innerHTML = `
-                    <h2 style="margin:0;">${houseName}</h2>
-                    <div style="font-size:0.9rem; margin-top:5px; opacity:0.8;">
-                        ${isAlert ? '🚨 ตรวจพบเหตุการณ์!' : isSolving ? '⚠️ กำลังตรวจสอบ...' : '✅ สถานะปกติ'}
-                    </div>
-                    ${isAlert ? `<button class="btn-action" style="background:var(--warning)" onclick="window.startSolve('${id}')">เข้าระงับเหตุ</button>` : ''}
-                    <div id="panel-${id}" style="display:${isSolving ? 'block' : 'none'}; margin-top:15px;">
-                        <input type="text" id="ins-${id}" class="input-log" placeholder="ชื่อผู้เข้าตรวจสอบ">
-                        <input type="text" id="log-${id}" class="input-log" placeholder="บันทึกสาเหตุ">
-                        <button class="btn-action" style="background:var(--success)" onclick="window.finalSave('${id}')">บันทึกปิดงาน</button>
-                    </div>
-                `;
-                container.appendChild(card);
+            if (isAlert && !isSolving) {
+                hasAnyAlert = true;
+                if (!eventStartTimes[id]) eventStartTimes[id] = new Date().toISOString();
             }
 
-            if (hasAlert) {
-                siren.play().catch(() => console.log("รอ User Click เพื่อเล่นเสียง"));
-            } else {
-                siren.pause();
-                siren.currentTime = 0;
-            }
-        });
-    }
+            const card = document.createElement('div');
+            card.className = `house-card ${isAlert && !isSolving ? 'alert' : ''} ${isSolving ? 'solving' : ''}`;
+            
+            const houseName = (settings.HouseNames && settings.HouseNames[id]) || `บ้านหลังที่ ${i}`;
+            
+            card.innerHTML = `
+                <h2 style="margin:0;">${houseName}</h2>
+                <div style="font-size:0.9rem; margin-top:5px;">
+                    ${isAlert && !isSolving ? '🚨 แจ้งเตือน!' : isSolving ? '⚠️ กำลังตรวจสอบ' : '✅ ปกติ'}
+                </div>
+                ${isAlert && !isSolving ? `<button class="btn-action" style="background:var(--warning)" onclick="window.startSolve('${id}')">เข้าระงับเหตุ</button>` : ''}
+                <div id="panel-${id}" style="display:${isSolving ? 'block' : 'none'}; margin-top:15px;">
+                    <input type="text" id="ins-${id}" class="input-log" placeholder="ชื่อผู้ตรวจสอบ">
+                    <input type="text" id="log-${id}" class="input-log" placeholder="บันทึกสาเหตุ">
+                    <button class="btn-action" style="background:var(--success)" onclick="window.finalSave('${id}')">บันทึกปิดงาน</button>
+                </div>
+            `;
+            container.appendChild(card);
+        }
 
+        if (hasAnyAlert) siren.play().catch(() => {});
+        else siren.pause();
+    });
+
+    // 3. ฟังก์ชันควบคุม
     window.startSolve = (id) => {
-        const dbRef = ref(database, `Houses/${id}`);
-        // อัปเดตสถานะเป็น 2
-        update(ref(database, 'Houses'), { [`${id}/Status`]: 2 }).catch(() => {
-            set(dbRef, 2); // ถ้าแบบบนพัง ให้เซ็ตค่าตรงๆ
-        });
+        localSolving[id] = true; // ล็อกสถานะในหน้าจอ
+        // ไม่ต้องอัปเดต Firebase ให้วุ่นวาย กัน Arduino ส่งทับ
+        const container = document.getElementById('housesContainer'); 
+        // สั่งวาดใหม่ทันที
+        onValue(ref(database, 'Houses'), () => {}, {onlyOnce: true}); 
     };
 
     window.finalSave = (id) => {
         const inspector = document.getElementById(`ins-${id}`).value;
         const log = document.getElementById(`log-${id}`).value;
 
-        if (!inspector || !log) {
-            alert("กรุณากรอกชื่อผู้ตรวจสอบและสาเหตุด้วยค่ะคุณลี");
-            return;
-        }
+        if (!inspector || !log) return alert("กรุณากรอกข้อมูลให้ครบค่ะ");
 
         const historyRef = push(ref(database, 'History'));
         set(historyRef, {
             houseName: (settings.HouseNames && settings.HouseNames[id]) || id,
             startTime: eventStartTimes[id] || new Date().toISOString(),
             endTime: new Date().toISOString(),
-            inspector: inspector,
-            log: log,
-            timestamp: serverTimestamp()
+            inspector: inspector, log: log, timestamp: serverTimestamp()
         }).then(() => {
-            // ปิดงาน รีเซ็ตสถานะเป็น 0
-            const dbRef = ref(database, `Houses/${id}`);
-            update(ref(database, 'Houses'), { [`${id}/Status`]: 0 }).catch(() => {
-                set(dbRef, 0);
-            });
+            delete localSolving[id];
             delete eventStartTimes[id];
+            alert("บันทึกสำเร็จ");
         });
     };
 
-    // โหลดประวัติมานับสถิติ
+    // นับสถิติ
     onValue(ref(database, 'History'), (snap) => {
         const data = snap.val() || {};
-        const count = Object.keys(data).length;
-        document.getElementById('monthEvents').innerText = count;
-        document.getElementById('yearEvents').innerText = count;
+        document.getElementById('monthEvents').innerText = Object.keys(data).length;
+        document.getElementById('yearEvents').innerText = Object.keys(data).length;
     });
 
 </script>

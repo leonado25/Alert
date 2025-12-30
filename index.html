@@ -3,66 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Village Security Dashboard</title>
+    <title>Village Security - Monitoring</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { --danger: #ff4d4d; --primary: #00d4ff; --warning: #f1c40f; --success: #2ecc71; --bg: #0f172a; --card: rgba(30, 41, 59, 0.7); --text: #fff; }
+        :root { --primary: #00d4ff; --bg: #0f172a; --card: rgba(30, 41, 59, 0.7); --text: #fff; --danger: #ff4d4d; --success: #2ecc71; --warning: #f1c40f; }
         .light-mode { --bg: #f1f5f9; --card: #ffffff; --text: #1e293b; --primary: #0284c7; }
-        body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; transition: 0.5s; overflow-x: hidden; }
+        
+        body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; transition: 0.5s; }
         .header { text-align: center; margin-bottom: 20px; }
-        .village-title { font-size: 1.8rem; font-weight: 600; color: var(--primary); margin: 0; }
-        .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; }
-        .stat-card { background: var(--card); padding: 10px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
-        .stat-val { font-size: 1.2rem; font-weight: 600; color: var(--primary); display: block; }
-        #quickAlert { display: none; background: var(--danger); color: white; padding: 12px; border-radius: 10px; margin-bottom: 15px; text-align: center; font-weight: 600; cursor: pointer; position: sticky; top: 10px; z-index: 999; }
-        .village-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
-        .house-card { background: var(--card); border-radius: 15px; padding: 15px; border: 2px solid transparent; transition: 0.3s; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        .house-card.alarm { border-color: var(--danger); background: rgba(255, 77, 77, 0.15); }
-        .house-card.checking { border-color: var(--warning); background: rgba(241, 196, 15, 0.15); }
-        .house-main { display: flex; align-items: center; gap: 15px; }
-        .house-icon-container { font-size: 2.2rem; min-width: 50px; text-align: center; }
-        .house-icon { color: var(--primary); display: inline-block !important; }
-        .alarm .house-icon { color: var(--danger); animation: shake 0.5s infinite; }
-        .checking .house-icon { color: var(--warning); }
-        .controls-panel { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(128,128,128,0.2); }
-        .alarm .controls-panel, .checking .controls-panel { display: block; }
-        .snooze-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--warning); }
-        .snooze-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 12px; }
-        .btn-snz { padding: 8px 0; border: none; border-radius: 5px; background: var(--warning); color: #000; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
-        .timer-display { font-size: 0.9rem; color: var(--warning); font-weight: 600; margin-bottom: 10px; display: block; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 5px; text-align: center; }
-        .btn-action { width: 100%; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; font-family: 'Prompt'; }
-        .btn-solve { background: var(--success); }
-        .btn-confirm { background: var(--primary); margin-top: 8px; }
-        .solve-step-2 { display: none; margin-top: 10px; }
-        .input-log { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; background: white; color: black; margin-bottom: 5px; box-sizing: border-box; font-family: 'Prompt'; width: 100%; }
-        #startOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; z-index: 10000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        @keyframes shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(5deg); } 75% { transform: rotate(-5deg); } }
+        
+        .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; }
+        .stat-card { background: var(--card); padding: 15px; border-radius: 15px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+        
+        /* สไตล์สำหรับตัวเลขที่คลิกได้ */
+        .stat-link { text-decoration: none; color: inherit; transition: 0.3s; cursor: pointer; display: block; }
+        .stat-link:hover .stat-val { color: var(--primary); text-decoration: underline; transform: scale(1.05); }
+        .stat-val { font-size: 1.6rem; font-weight: 600; color: var(--primary); transition: 0.3s; }
+
+        .houses-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .house-card { background: var(--card); border-radius: 20px; padding: 20px; border: 2px solid transparent; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .house-card.alert { border-color: var(--danger); animation: pulse 2s infinite; }
+        .house-card.solving { border-color: var(--warning); }
+        
+        .btn-action { width: 100%; padding: 12px; border: none; border-radius: 10px; font-family: 'Prompt'; font-weight: 600; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .btn-action:active { transform: scale(0.98); }
+        
+        .input-log { width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 12px; border-radius: 8px; margin-bottom: 8px; box-sizing: border-box; font-family: 'Prompt'; }
+        .light-mode .input-log { background: #f8fafc; color: #1e293b; border-color: #cbd5e1; }
+        
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 77, 77, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0); } }
     </style>
 </head>
-<body>
-
-    <div id="startOverlay">
-        <i class="fas fa-shield-alt" style="font-size: 5rem; color: var(--primary); margin-bottom: 20px;"></i>
-        <h2 style="color:white; margin-bottom:20px;">ระบบเฝ้าระวังความปลอดภัย</h2>
-        <button id="btnStart" style="padding:15px 40px; font-size:1.2rem; background:var(--primary); color:#000; border:none; border-radius:10px; cursor:pointer; font-family:'Prompt'; font-weight:600;">เริ่มการทำงานและเปิดเสียงเตือน</button>
-    </div>
+<body onclick="document.getElementById('sirenSound').pause()">
 
     <div class="header">
-        <h1 class="village-title" id="villageDisplay">กำลังโหลด...</h1>
-        <div class="stats-bar">
-            <div class="stat-card"><span>ปลอดภัย</span><span class="stat-val" id="safeDays">0 วัน</span></div>
-            <div class="stat-card"><span>เดือนนี้</span><span class="stat-val" id="monthEvents">0 ครั้ง</span></div>
-            <div class="stat-card"><span>ปีนี้</span><span class="stat-val" id="yearEvents">0 ครั้ง</span></div>
+        <h1 id="villageDisplay">Smart Village</h1>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat-card">
+            <span>ปลอดภัยต่อเนื่อง</span>
+            <div class="stat-val" id="safeDays">0 วัน</div>
+        </div>
+        <div class="stat-card">
+            <a href="history.html" class="stat-link">
+                <span>เดือนนี้ (คลิกดูประวัติ)</span>
+                <div class="stat-val" id="monthEvents">0</div>
+            </a>
+        </div>
+        <div class="stat-card">
+            <a href="history.html" class="stat-link">
+                <span>ปีนี้ (คลิกดูประวัติ)</span>
+                <div class="stat-val" id="yearEvents">0</div>
+            </a>
         </div>
     </div>
-    <div id="quickAlert" onclick="scrollToAlarm()">🚨 แจ้งเตือน: <span id="alertList"></span></div>
-    <div class="village-grid" id="villageGrid"></div>
-    <audio id="siren" loop preload="auto"><source src="https://www.soundjay.com/buttons/beep-01a.mp3" type="audio/mpeg"></audio>
+
+    <div class="houses-grid" id="housesContainer"></div>
+    
+    <audio id="sirenSound" loop><source src="https://www.soundjay.com/buttons/beep-01a.mp3" type="audio/mpeg"></audio>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, onValue, set, push, serverTimestamp, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, onValue, set, update, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyBGVarHKqwjhNR_BGANj8CnSWahIHtJNiM",
@@ -75,168 +79,103 @@
 
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
+    const siren = document.getElementById('sirenSound');
+    
     let settings = {};
-    let localStatus = {}; 
-    let lastFirebaseData = {};
-    let eventStartTimes = {}; // เก็บเวลาที่เริ่มเกิดเหตุของแต่ละหลัง
-    let countdowns = {};
-    let audioEnabled = false;
+    let localSolving = {}; 
+    let eventStartTimes = {};
 
-    document.getElementById('btnStart').addEventListener('click', function() {
-        const siren = document.getElementById('siren');
-        siren.play().then(() => { siren.pause(); siren.currentTime = 0; audioEnabled = true; document.getElementById('startOverlay').style.display = 'none'; });
-    });
-
+    // 1. ฟังค่า Settings (เปลี่ยนธีมและชื่อหมู่บ้านทันที)
     onValue(ref(database, 'Settings'), (snap) => {
         settings = snap.val() || {};
         document.getElementById('villageDisplay').innerText = settings.VillageName || "Smart Village";
-        renderHouses();
-    });
-
-    // ฟังค่าสถิติจาก History (ถ้ามีข้อมูล)
-    onValue(ref(database, 'History'), (snap) => {
-        const historyData = snap.val() || {};
-        const now = new Date();
-        let monthCount = 0;
-        let yearCount = 0;
-
-        Object.values(historyData).forEach(event => {
-            const eventDate = new Date(event.timestamp);
-            if (eventDate.getFullYear() === now.getFullYear()) {
-                yearCount++;
-                if (eventDate.getMonth() === now.getMonth()) monthCount++;
-            }
-        });
-        document.getElementById('monthEvents').innerText = monthCount + " ครั้ง";
-        document.getElementById('yearEvents').innerText = yearCount + " ครั้ง";
-    });
-
-    function renderHouses() {
-        const grid = document.getElementById('villageGrid'); grid.innerHTML = "";
-        for(let i=1; i<=settings.TotalHouses; i++){
-            const id = `House${i}`;
-            const name = (settings.HouseNames && settings.HouseNames[id]) || `หลังที่ ${i}`;
-            grid.innerHTML += `
-                <div class="house-card" id="card-${id}">
-                    <div class="house-main">
-                        <div class="house-icon-container"><i class="fas fa-home house-icon"></i></div>
-                        <div><div style="font-weight:600">${name}</div><small id="txt-${id}">ปกติ</small></div>
-                    </div>
-                    <div class="controls-panel">
-                        <div id="panel-step-1-${id}">
-                            <div class="snooze-title"><i class="fas fa-user-check"></i> ปิดเสียงเตือนชั่วคราว เพื่อเข้าตรวจสอบ</div>
-                            <span id="timer-${id}" class="timer-display" style="display:none;"></span>
-                            <div class="snooze-grid">${(settings.SnoozeTimes || [5,15,30,60]).map(t => `<button class="btn-snz" id="btn-snz-${id}-${t}">${t} ม.</button>`).join('')}</div>
-                            <button class="btn-action btn-solve" id="btn-solve-${id}">ตรวจสอบและแก้ไขแล้ว</button>
-                        </div>
-                        <div id="panel-step-2-${id}" class="solve-step-2">
-                            <input type="text" id="log-${id}" class="input-log" placeholder="พิมพ์สาเหตุปัญหาที่พบ...">
-                            <button class="btn-action btn-confirm" id="btn-confirm-${id}">บันทึกและปิดระบบ</button>
-                        </div>
-                    </div>
-                </div>`;
-        }
-        for(let i=1; i<=settings.TotalHouses; i++){
-            const id = `House${i}`;
-            (settings.SnoozeTimes || [5,15,30,60]).forEach(t => { document.getElementById(`btn-snz-${id}-${t}`).onclick = () => startChecking(id, t); });
-            document.getElementById(`btn-solve-${id}`).onclick = () => tryResolve(id);
-            document.getElementById(`btn-confirm-${id}`).onclick = () => finalSave(id);
-        }
-        listenHouses();
-    }
-
-    function refreshUI() {
-        let alerts = [];
-        let shouldPlaySiren = false;
-        for(let i=1; i<=settings.TotalHouses; i++){
-            const id = 'House' + i;
-            const card = document.getElementById('card-' + id);
-            const txt = document.getElementById('txt-' + id);
-            if(!card) continue;
-            const firebaseStatus = lastFirebaseData[id] || 0;
-
-            if(firebaseStatus == 1 && localStatus[id] !== 'checking') {
-                localStatus[id] = 'alarm';
-                if(!eventStartTimes[id]) eventStartTimes[id] = new Date().toISOString();
-            }
-
-            if(localStatus[id] === 'alarm') {
-                card.className = 'house-card alarm'; txt.innerText = "แจ้งเตือน";
-                shouldPlaySiren = true; alerts.push((settings.HouseNames && settings.HouseNames[id]) || 'หลังที่ '+i);
-            } else if(localStatus[id] === 'checking') {
-                card.className = 'house-card checking'; txt.innerText = "กำลังเข้าตรวจสอบ...";
-                alerts.push((settings.HouseNames && settings.HouseNames[id]) || 'หลังที่ '+i);
-            } else {
-                card.className = 'house-card'; txt.innerText = "ปกติ";
-            }
-        }
-        const alertBox = document.getElementById('quickAlert');
-        if(alerts.length > 0) { alertBox.style.display = 'block'; document.getElementById('alertList').innerText = alerts.join(', '); }
-        else { alertBox.style.display = 'none'; }
-
-        const siren = document.getElementById('siren');
-        if(shouldPlaySiren && audioEnabled) { if(siren.paused) siren.play().catch(()=>{}); }
-        else { siren.pause(); siren.currentTime = 0; }
-    }
-
-    function listenHouses() {
-        onValue(ref(database, 'Houses'), (snap) => { lastFirebaseData = snap.val() || {}; refreshUI(); });
-    }
-
-    window.startChecking = (id, minutes) => {
-        localStatus[id] = 'checking'; refreshUI();
-        if(countdowns[id]) clearInterval(countdowns[id]);
-        let timeLeft = minutes * 60;
-        const timerEl = document.getElementById(`timer-${id}`);
-        timerEl.style.display = 'block';
-        countdowns[id] = setInterval(() => {
-            let m = Math.floor(timeLeft / 60); let s = timeLeft % 60;
-            timerEl.innerHTML = `<i class="fas fa-hourglass-half"></i> เหลือเวลาตรวจสอบ: ${m}:${s < 10 ? '0' : ''}${s}`;
-            if (timeLeft <= 0) {
-                clearInterval(countdowns[id]); timerEl.style.display = 'none';
-                get(ref(database, 'Houses/'+id)).then((snap) => { if(snap.val() == 1) { delete localStatus[id]; refreshUI(); } });
-            }
-            timeLeft--;
-        }, 1000);
-    };
-
-    window.tryResolve = (id) => {
-        get(ref(database, 'Houses/'+id)).then((snap) => {
-            if(snap.val() == 1) alert("❌ การแก้ไขยังไม่เรียบร้อย! ระบบตรวจพบว่าสายสัญญาณยังมีการช็อตอยู่");
-            else { document.getElementById('panel-step-1-'+id).style.display = 'none'; document.getElementById('panel-step-2-'+id).style.display = 'block'; }
-        });
-    };
-
-    window.finalSave = (id) => {
-        const logText = document.getElementById('log-'+id).value;
-        if(!logText.trim()) { alert("⚠️ ไม่สามารถเว้นว่างได้!"); return; }
         
-        // --- ส่วนการส่งข้อมูลลง History ---
-        const historyRef = ref(database, 'History');
-        const newEventRef = push(historyRef);
-        set(newEventRef, {
+        // อัปเดต Theme
+        if (settings.Theme === 'light') {
+            document.body.classList.add('light-mode');
+        } else {
+            document.body.classList.remove('light-mode');
+        }
+    });
+
+    // 2. ฟังค่าสถานะบ้าน
+    onValue(ref(database, 'Houses'), (snap) => {
+        const housesData = snap.val() || {};
+        const container = document.getElementById('housesContainer');
+        container.innerHTML = '';
+        let hasAnyAlert = false;
+
+        const total = parseInt(settings.TotalHouses) || 10;
+        for (let i = 1; i <= total; i++) {
+            const id = `House${i}`;
+            const data = housesData[id];
+            
+            // อ่านค่า Status แบบยืดหยุ่น (0, 1 หรือ {Status: 1})
+            let rawStatus = (data && typeof data === 'object') ? (data.Status || 0) : (data || 0);
+
+            const isAlert = rawStatus == 1; 
+            const isSolving = localSolving[id] === true; 
+
+            if (isAlert && !isSolving) {
+                hasAnyAlert = true;
+                if (!eventStartTimes[id]) eventStartTimes[id] = new Date().toISOString();
+            }
+
+            const card = document.createElement('div');
+            card.className = `house-card ${isAlert && !isSolving ? 'alert' : ''} ${isSolving ? 'solving' : ''}`;
+            const name = (settings.HouseNames && settings.HouseNames[id]) || `บ้านหลังที่ ${i}`;
+            
+            card.innerHTML = `
+                <h2 style="margin:0;">${name}</h2>
+                <div style="font-size:0.9rem; margin-top:5px; opacity:0.8;">
+                    ${isAlert && !isSolving ? '🚨 มีการบุกรุก!' : isSolving ? '⚠️ กำลังตรวจสอบ...' : '✅ สถานะปกติ'}
+                </div>
+                ${isAlert && !isSolving ? `<button class="btn-action" style="background:var(--warning); color:#000;" onclick="window.startSolve('${id}')">ระงับเหตุการณ์</button>` : ''}
+                <div id="panel-${id}" style="display:${isSolving ? 'block' : 'none'}; margin-top:15px;">
+                    <input type="text" id="log-${id}" class="input-log" placeholder="ระบุสาเหตุ (เช่น ลมพัดแรง)">
+                    <button class="btn-action" style="background:var(--success); color:#fff;" onclick="window.finalSave('${id}')">บันทึกและปิดงาน</button>
+                </div>
+            `;
+            container.appendChild(card);
+        }
+
+        if (hasAnyAlert) siren.play().catch(() => {});
+        else { siren.pause(); siren.currentTime = 0; }
+    });
+
+    // ฟังก์ชันจัดการเหตุการณ์ (Local Latch)
+    window.startSolve = (id) => {
+        localSolving[id] = true;
+        // Re-render
+        onValue(ref(database, 'Houses'), () => {}, {onlyOnce: true}); 
+    };
+
+    // ฟังก์ชันบันทึก History และปิดงาน
+    window.finalSave = (id) => {
+        const log = document.getElementById(`log-${id}`).value;
+        if (!log) return alert("กรุณาระบุสาเหตุที่เกิดขึ้นด้วยค่ะคุณลี");
+
+        const historyRef = push(ref(database, 'History'));
+        set(historyRef, {
             houseName: (settings.HouseNames && settings.HouseNames[id]) || id,
             startTime: eventStartTimes[id] || new Date().toISOString(),
             endTime: new Date().toISOString(),
-            log: logText,
+            log: log,
             timestamp: serverTimestamp()
         }).then(() => {
-            delete localStatus[id];
+            delete localSolving[id];
             delete eventStartTimes[id];
-            if(countdowns[id]) clearInterval(countdowns[id]);
-            document.getElementById('panel-step-2-'+id).style.display = 'none';
-            document.getElementById('panel-step-1-'+id).style.display = 'block';
-            document.getElementById('timer-'+id).style.display = 'none';
-            document.getElementById('log-'+id).value = "";
-            refreshUI();
-            alert("✅ บันทึกประวัติและปิดระบบเรียบร้อย");
+            alert("บันทึกประวัติเรียบร้อยแล้วค่ะ");
         });
     };
 
-    window.scrollToAlarm = () => {
-        const el = document.querySelector('.alarm, .checking');
-        if(el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    };
+    // นับสถิติจาก History
+    onValue(ref(database, 'History'), (snap) => {
+        const data = snap.val() || {};
+        const count = Object.keys(data).length;
+        document.getElementById('monthEvents').innerText = count;
+        document.getElementById('yearEvents').innerText = count;
+    });
 </script>
 </body>
 </html>

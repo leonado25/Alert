@@ -19,9 +19,8 @@
         body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; transition: 0.5s; }
         
         .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-        .btn-back { color: var(--text); text-decoration: none; background: var(--card); padding: 8px 15px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.9rem; transition: 0.3s; cursor: pointer; }
+        .btn-back { color: var(--text); text-decoration: none; background: var(--card); padding: 8px 15px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.9rem; transition: 0.3s; }
         .btn-back:hover { background: var(--primary); color: #000; }
-        .btn-print { background: var(--success); color: #000; border: none; font-weight: 600; margin-left: 10px; }
 
         /* ส่วนปฏิทิน */
         .calendar-card { background: var(--card); border-radius: 15px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border); }
@@ -46,30 +45,13 @@
         td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
         .inspector-tag { color: var(--success); font-weight: 600; }
         .log-text { color: var(--text); opacity: 0.8; font-style: italic; }
-
-        /* --- CSS สำหรับการพิมพ์ --- */
-        @media print {
-            body { background: white !important; color: black !important; padding: 0; }
-            .header, .calendar-card, .btn-back, .btn-print, #btnClearFilter, .nav-btn { display: none !important; }
-            .history-list-card { background: white !important; border: none !important; box-shadow: none !important; width: 100% !important; }
-            table { min-width: 100% !important; border: 1px solid #000 !important; }
-            th { color: black !important; border-bottom: 2px solid #000 !important; background: #eee !important; }
-            td { border-bottom: 1px solid #ddd !important; color: black !important; }
-            .inspector-tag { color: black !important; font-weight: bold; }
-            .log-text { color: black !important; }
-            h3 { color: black !important; text-align: center; font-size: 1.5rem; margin-bottom: 20px; }
-            /* แสดงหัวกระดาษตอนพิมพ์ */
-            body::before { content: "รายงานเหตุการณ์ประจำวัน - ระบบรักษาความปลอดภัยหมู่บ้าน"; display: block; text-align: center; font-weight: bold; font-size: 1.2rem; margin-bottom: 10px; }
-        }
     </style>
 </head>
 <body>
 
     <div class="header">
         <a href="index.html" class="btn-back"><i class="fas fa-arrow-left"></i> กลับหน้าหลัก</a>
-        <div>
-            <button class="btn-back btn-print" onclick="printTodayReport()"><i class="fas fa-print"></i> พิมพ์รายงานวันนี้</button>
-        </div>
+        <h2 style="margin:0; font-size: 1.3rem;"><i class="fas fa-history"></i> ประวัติเหตุการณ์</h2>
     </div>
 
     <div class="calendar-card">
@@ -81,7 +63,7 @@
         <div class="calendar-grid" id="calendarGrid"></div>
     </div>
 
-    <div class="history-list-card" id="printableArea">
+    <div class="history-list-card">
         <div class="table-header-flex">
             <h3 id="tableTitle">รายการของเดือนนี้</h3>
             <button class="btn-back" id="btnClearFilter" style="display:none; padding: 4px 10px; font-size: 0.7rem;" onclick="resetFilter()">แสดงทั้งเดือน</button>
@@ -121,6 +103,7 @@
     let selectedDateStr = null;
     const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 
+    // ธีม
     onValue(ref(database, 'Settings'), (snap) => {
         const settings = snap.val() || {};
         const mode = settings.Theme || 'dark';
@@ -128,6 +111,7 @@
         document.body.className = isDark ? '' : 'light-mode';
     });
 
+    // ประวัติ
     onValue(ref(database, 'History'), (snap) => {
         const data = snap.val();
         allHistory = data ? Object.values(data).sort((a, b) => b.timestamp - a.timestamp) : [];
@@ -191,22 +175,6 @@
 
     window.changeMonth = (val) => { selectedDateStr = null; currentViewDate.setMonth(currentViewDate.getMonth() + val); renderCalendar(); renderTable(); };
     window.resetFilter = () => { selectedDateStr = null; renderCalendar(); renderTable(); };
-
-    // --- ฟังก์ชันพิมพ์เฉพาะวันนี้ ---
-    window.printTodayReport = () => {
-        const today = new Date();
-        const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        
-        // กรองข้อมูลให้เหลือแค่ของวันนี้ก่อนพิมพ์
-        selectedDateStr = dateStr;
-        renderCalendar();
-        renderTable();
-
-        // สั่งพิมพ์
-        setTimeout(() => {
-            window.print();
-        }, 500); // รอ UI รีเฟรชแป๊บนึงแล้วค่อยพิมพ์
-    };
 </script>
 </body>
 </html>

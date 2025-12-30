@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Village Security Dashboard</title>
+    <title>Village Security - Real-time Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -16,118 +16,182 @@
         body {
             font-family: 'Prompt', sans-serif;
             background: radial-gradient(circle at top right, #1e293b, #0f172a);
-            color: #f8fafc;
-            margin: 0; padding: 20px; min-height: 100vh;
+            color: #f8fafc; margin: 0; padding: 20px; min-height: 100vh;
         }
-        .header { text-align: center; padding: 30px 10px; }
+        .header { text-align: center; padding: 20px; }
         .header h1 { 
-            margin: 0; 
-            background: linear-gradient(to right, #00d4ff, #00ffaa);
+            margin: 0; background: linear-gradient(to right, #00d4ff, #00ffaa);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             font-size: clamp(1.5rem, 5vw, 2.5rem);
         }
+
+        /* ตารางวางบ้าน */
         .village-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
-            gap: 20px; width: 100%; max-width: 1200px; margin: 0 auto;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); 
+            gap: 20px; width: 100%; max-width: 1400px; margin: 20px auto;
         }
+
         .house-card {
             background: var(--card-bg);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px; padding: 30px;
-            text-align: center; transition: all 0.4s ease;
+            border-radius: 20px; padding: 20px;
+            text-align: center; transition: 0.3s;
         }
-        .house-icon { font-size: 3rem; margin-bottom: 12px; color: var(--primary-color); }
-        .house-name { display: block; font-weight: 400; margin-bottom: 5px; }
-        .status-text { font-size: 0.8rem; opacity: 0.6; }
 
-        /* แจ้งเตือน */
         .house-card.alarm {
             border-color: var(--danger-color);
-            box-shadow: 0 0 20px rgba(255, 77, 77, 0.4);
             background: rgba(255, 77, 77, 0.2);
             animation: pulse 1.5s infinite;
         }
+
+        .house-icon { font-size: 2.5rem; color: var(--primary-color); margin-bottom: 10px; }
         .house-card.alarm .house-icon { color: var(--danger-color); animation: shake 0.5s infinite; }
-        
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-        @keyframes shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(10deg); } 75% { transform: rotate(-10deg); } }
+
+        /* Modal แจ้งเตือน */
+        #alertModal {
+            display: none; position: fixed; z-index: 1000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+        }
+        .modal-content {
+            background: #1e293b; margin: 10% auto; padding: 30px;
+            width: 90%; max-width: 500px; border-radius: 20px; text-align: center;
+            border: 2px solid var(--danger-color);
+        }
+        .snooze-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .btn { 
+            padding: 15px; border: none; border-radius: 10px; cursor: pointer; 
+            font-family: 'Prompt'; font-weight: 600; font-size: 1rem;
+        }
+        .btn-snooze { background: #f1c40f; color: #000; }
+        .btn-solve { background: #2ecc71; color: #fff; grid-column: span 2; margin-top: 10px; }
+
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+        @keyframes shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(5deg); } 75% { transform: rotate(-5deg); } }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1>SMART VILLAGE SECURITY</h1>
-        <p style="opacity: 0.6;">ระบบเฝ้าระวังความปลอดภัยอัจฉริยะ</p>
+        <h1>SMART VILLAGE MONITOR</h1>
+        <p id="system-status">ระบบกำลังตรวจสอบความปลอดภัย...</p>
     </div>
 
-    <div class="village-grid" id="villageGrid">
+    <div class="village-grid" id="villageGrid"></div>
+
+    <div id="alertModal">
+        <div class="modal-content">
+            <h2 style="color: var(--danger-color); margin: 0;"><i class="fas fa-exclamation-triangle"></i> พบการบุกรุก!</h2>
+            <p id="modal-house-name" style="font-size: 1.5rem; margin: 15px 0;"></p>
+            <p>เลือกการจัดการ:</p>
+            <div class="snooze-buttons" id="snoozeContainer">
+                </div>
+            <button class="btn btn-solve" onclick="closeModal()">ตรวจสอบและแก้ไขแล้ว</button>
         </div>
+    </div>
+
+    <audio id="sirenAudio" loop>
+        <source src="https://www.soundjay.com/buttons/beep-01a.mp3" type="audio/mpeg">
+    </audio>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // --- 1. ใส่ข้อมูล Firebase ของคุณลีตรงนี้ ---
         const firebaseConfig = {
-            apiKey: "ใส่_Web_API_Key_ของคุณลี",
+            apiKey: "AIzaSyBGVarHKqwjhNR_BGANj8CnSWahIHtJNiM",
             authDomain: "village-security-adf63.firebaseapp.com",
             databaseURL: "https://village-security-adf63-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "village-security-adf63",
-            storageBucket: "village-security-adf63.appspot.com",
-            messagingSenderId: "943368318320",
-            appId: "ใส่_App_Id_ของคุณลี"
+            storageBucket: "village-security-adf63.firebasestorage.app",
+            appId: "1:943368318320:web:7bfb07a8c1db15952233b5"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
+        const siren = document.getElementById('sirenAudio');
 
-        // --- 2. สร้างบ้าน 8 หลัง ---
-        const grid = document.getElementById('villageGrid');
-        function createHouses() {
-            grid.innerHTML = ""; // ล้างค่าเก่า
-            for (let i = 1; i <= 8; i++) {
+        // 1. โหลดการตั้งค่าจาก Firebase (จำนวนบ้าน & เวลา Snooze)
+        onValue(ref(database, 'Settings'), (snapshot) => {
+            const settings = snapshot.val();
+            if (settings) {
+                renderVillage(settings.TotalHouses || 8);
+                renderSnoozeButtons(settings.SnoozeTimes || [3, 15, 30, 60]);
+            }
+        });
+
+        // 2. ฟังก์ชันวาดรูปบ้าน
+        function renderVillage(total) {
+            const grid = document.getElementById('villageGrid');
+            grid.innerHTML = "";
+            for (let i = 1; i <= total; i++) {
                 const card = document.createElement('div');
                 card.className = 'house-card';
                 card.id = `house-${i}`;
                 card.innerHTML = `
                     <i class="fas fa-house-shield house-icon"></i>
-                    <span class="house-name">บ้านหลังที่ ${i}</span>
-                    <span class="status-text" id="status-${i}">สถานะปกติ</span>
+                    <div style="font-weight:600">หลังที่ ${i}</div>
+                    <small id="status-text-${i}" style="opacity:0.6">ปกติ</small>
                 `;
                 grid.appendChild(card);
             }
+            listenToHouses(total);
         }
 
-        // --- 3. ฟังก์ชันอัปเดตสถานะ ---
-        function updateUI(houseNum, isAlarm) {
-            const card = document.getElementById(`house-${houseNum}`);
-            const text = document.getElementById(`status-${houseNum}`);
-            if (card && text) {
-                if (isAlarm == 1) {
-                    card.classList.add('alarm');
-                    text.innerText = "!!! บุกรุก !!!";
-                    text.style.color = "#ff4d4d";
-                } else {
-                    card.classList.remove('alarm');
-                    text.innerText = "สถานะปกติ";
-                    text.style.color = "";
+        // 3. ฟังก์ชันสร้างปุ่ม Snooze
+        function renderSnoozeButtons(times) {
+            const container = document.getElementById('snoozeContainer');
+            container.innerHTML = "";
+            times.forEach(time => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-snooze';
+                btn.innerText = `พัก ${time} นาที`;
+                btn.onclick = () => alert(`พักการเตือน ${time} นาที (Feature นี้จะทำต่อในระบบ History)`);
+                container.appendChild(btn);
+            });
+        }
+
+        // 4. ดักฟังสถานะบ้านทุกหลัง
+        function listenToHouses(total) {
+            onValue(ref(database, 'Houses'), (snapshot) => {
+                const houses = snapshot.val() || {};
+                let anyAlarm = false;
+
+                for (let i = 1; i <= total; i++) {
+                    const status = houses[`House${i}`];
+                    const card = document.getElementById(`house-${i}`);
+                    const text = document.getElementById(`status-text-${i}`);
+
+                    if (status == 1) {
+                        card.classList.add('alarm');
+                        text.innerText = "บุกรุก!";
+                        anyAlarm = true;
+                        showModal(i);
+                    } else {
+                        card.classList.remove('alarm');
+                        text.innerText = "ปกติ";
+                    }
                 }
-            }
+
+                if (anyAlarm) {
+                    siren.play().catch(e => console.log("รอการอนุญาตเล่นเสียง"));
+                } else {
+                    siren.pause();
+                    siren.currentTime = 0;
+                }
+            });
         }
 
-        // --- 4. ดึงข้อมูลจาก Firebase แบบ Real-time ---
-        createHouses(); // สร้างบ้านทันทีที่โหลด
-        
-        // ดักฟังข้อมูลบ้านหลังที่ 6 (ตามที่คุณลีเขียนโค้ดบอร์ดไว้)
-        const house6Ref = ref(database, 'Houses/House6');
-        onValue(house6Ref, (snapshot) => {
-            const data = snapshot.val();
-            updateUI(6, data);
-        });
+        function showModal(houseNum) {
+            document.getElementById('alertModal').style.display = 'block';
+            document.getElementById('modal-house-name').innerText = `บ้านหลังที่ ${houseNum}`;
+        }
 
+        window.closeModal = function() {
+            document.getElementById('alertModal').style.display = 'none';
+        }
     </script>
 </body>
 </html>

@@ -77,6 +77,7 @@
     const database = getDatabase(app);
     let settings = {};
     let localStatus = {}; 
+    let lastFirebaseData = {}; // เก็บข้อมูลล่าสุดจากบอร์ด
     let countdowns = {};
     let audioEnabled = false;
 
@@ -126,49 +127,70 @@
         listenHouses();
     }
 
+    // ฟังก์ชันสำหรับวาดสถานะ UI ใหม่ทั้งหมด
+    function refreshUI() {
+        let alerts = [];
+        let shouldPlaySiren = false;
+
+        for(let i=1; i<=settings.TotalHouses; i++){
+            const id = 'House' + i;
+            const card = document.getElementById('card-' + id);
+            const txt = document.getElementById('txt-' + id);
+            if(!card) continue;
+
+            const firebaseStatus = lastFirebaseData[id] || 0;
+
+            // LATCH LOGIC
+            if(firebaseStatus == 1 && localStatus[id] !== 'checking') {
+                localStatus[id] = 'alarm';
+            }
+
+            if(localStatus[id] === 'alarm') {
+                card.className = 'house-card alarm';
+                txt.innerText = "แจ้งเตือน";
+                shouldPlaySiren = true;
+                alerts.push((settings.HouseNames && settings.HouseNames[id]) || 'หลังที่ '+i);
+            } 
+            else if(localStatus[id] === 'checking') {
+                card.className = 'house-card checking';
+                txt.innerText = "กำลังเข้าตรวจสอบ...";
+                alerts.push((settings.HouseNames && settings.HouseNames[id]) || 'หลังที่ '+i);
+            } 
+            else {
+                card.className = 'house-card';
+                txt.innerText = "ปกติ";
+            }
+        }
+
+        // อัปเดตแถบแดงด้านบน
+        const alertBox = document.getElementById('quickAlert');
+        if(alerts.length > 0) {
+            alertBox.style.display = 'block';
+            document.getElementById('alertList').innerText = alerts.join(', ');
+        } else {
+            alertBox.style.display = 'none';
+        }
+
+        // อัปเดตเสียงไซเรน
+        const siren = document.getElementById('siren');
+        if(shouldPlaySiren && audioEnabled) {
+            if(siren.paused) siren.play().catch(()=>{});
+        } else {
+            siren.pause();
+            siren.currentTime = 0;
+        }
+    }
+
     function listenHouses() {
         onValue(ref(database, 'Houses'), (snap) => {
-            const data = snap.val() || {};
-            let alerts = [];
-            let shouldPlaySiren = false;
-
-            for(let i=1; i<=settings.TotalHouses; i++){
-                const id = 'House' + i;
-                const card = document.getElementById('card-' + id);
-                const txt = document.getElementById('txt-' + id);
-                if(!card) continue;
-
-                // LATCH LOGIC: ถ้าในบอร์ดเป็น 1 ให้แดงค้างทันที (ถ้าไม่ได้กำลังเช็คอยู่)
-                if(data[id] == 1 && localStatus[id] !== 'checking') {
-                    localStatus[id] = 'alarm';
-                }
-
-                if(localStatus[id] === 'alarm') {
-                    card.className = 'house-card alarm';
-                    txt.innerText = "แจ้งเตือน";
-                    shouldPlaySiren = true;
-                    alerts.push((settings.HouseNames && settings.HouseNames[id]) || 'หลังที่ '+i);
-                } 
-                else if(localStatus[id] === 'checking') {
-                    card.className = 'house-card checking';
-                    txt.innerText = "กำลังเข้าตรวจสอบ...";
-                    alerts.push((settings.HouseNames && settings.HouseNames[id]) || 'หลังที่ '+i);
-                } 
-                else {
-                    card.className = 'house-card';
-                    txt.innerText = "ปกติ";
-                }
-            }
-            document.getElementById('quickAlert').style.display = alerts.length ? 'block' : 'none';
-            document.getElementById('alertList').innerText = alerts.join(', ');
-            const siren = document.getElementById('siren');
-            if(shouldPlaySiren && audioEnabled) siren.play().catch(()=>{}); else siren.pause();
+            lastFirebaseData = snap.val() || {};
+            refreshUI();
         });
     }
 
     window.startChecking = (id, minutes) => {
         localStatus[id] = 'checking';
-        document.getElementById('siren').pause();
+        refreshUI(); // สั่งรีเฟรชเสียงและแถบทันที
         if(countdowns[id]) clearInterval(countdowns[id]);
         let timeLeft = minutes * 60;
         const timerEl = document.getElementById(`timer-${id}`);
@@ -178,7 +200,9 @@
             timerEl.innerHTML = `<i class="fas fa-hourglass-half"></i> เหลือเวลาตรวจสอบ: ${m}:${s < 10 ? '0' : ''}${s}`;
             if (timeLeft <= 0) {
                 clearInterval(countdowns[id]); timerEl.style.display = 'none';
-                get(ref(database, 'Houses/'+id)).then((snap) => { if(snap.val() == 1) delete localStatus[id]; });
+                get(ref(database, 'Houses/'+id)).then((snap) => { 
+                    if(snap.val() == 1) { delete localStatus[id]; refreshUI(); } 
+                });
             }
             timeLeft--;
         }, 1000);
@@ -195,26 +219,20 @@
         const logText = document.getElementById('log-'+id).value;
         if(!logText.trim()) { alert("⚠️ ไม่สามารถเว้นว่างได้!"); return; }
         
-        // --- ส่วนที่แก้ไข: ล้างค่า localStatus ให้เกลี้ยงและอัปเดต UI ทันที ---
-        localStatus[id] = 'normal'; // ตั้งเป็นสถานะปกติ
-        delete localStatus[id];    // ลบออกจากรายการติดตาม
-        
+        // ล้างสถานะ Latch ออก
+        delete localStatus[id];
         if(countdowns[id]) clearInterval(countdowns[id]);
         
-        // รีเซ็ตหน้าจอกลับสู่ปกติ
-        document.getElementById('card-'+id).className = 'house-card';
-        document.getElementById('txt-'+id).innerText = "ปกติ";
+        // รีเซ็ต UI ของการ์ด
         document.getElementById('panel-step-2-'+id).style.display = 'none';
         document.getElementById('panel-step-1-'+id).style.display = 'block';
         document.getElementById('timer-'+id).style.display = 'none';
         document.getElementById('log-'+id).value = "";
 
-        alert("✅ บันทึกและปิดระบบแจ้งเตือนเรียบร้อย");
+        // สำคัญ: สั่งรีเฟรช UI ทั้งระบบเพื่อล้างแถบแดงและเสียงทันที
+        refreshUI();
         
-        // สั่งให้ฟังก์ชัน listenHouses ทำงานอีกครั้งเพื่อรีเฟรชแถบแจ้งเตือนด้านบน
-        get(ref(database, 'Houses')).then(() => {
-            console.log("UI Refreshed after save");
-        });
+        alert("✅ บันทึกและปิดระบบแจ้งเตือนเรียบร้อย");
     };
 
     window.scrollToAlarm = () => {

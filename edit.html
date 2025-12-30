@@ -18,6 +18,7 @@
         .warning-text { color: #f1c40f; font-size: 0.8rem; display: none; }
         .changed .warning-text { display: block; }
         .clear { clear: both; }
+        h1 { border-bottom: 1px solid #334155; padding-bottom: 15px; margin-bottom: 25px; }
     </style>
 </head>
 <body>
@@ -25,30 +26,31 @@
     <h1><i class="fas fa-user-shield"></i> ระบบหลังบ้าน (Settings)</h1>
 
     <div class="section-card" id="card-total">
-        <div style="font-weight:600"><i class="fas fa-home"></i> จำนวนบ้านทั้งหมด</div>
+        <div style="font-weight:600; margin-bottom:10px;"><i class="fas fa-home"></i> จำนวนบ้านทั้งหมด</div>
         <input type="number" id="totalHouses" oninput="markChanged('card-total')">
-        <p class="warning-text">⚠️ กรุณากดบันทึกการเปลี่ยนแปลง</p>
+        <p class="warning-text">⚠️ ข้อมูลเปลี่ยนไป กรุณากดบันทึก</p>
         <button class="btn-save" onclick="saveTotalHouses()">บันทึกจำนวนบ้าน</button>
         <div class="clear"></div>
     </div>
 
-    <div class="section-card" id="card-names">
-        <div style="font-weight:600"><i class="fas fa-tags"></i> ตั้งชื่อเรียกบ้านแต่ละหลัง</div>
-        <div id="namesContainer" class="name-grid"></div>
-        <p class="warning-text">⚠️ กรุณากดบันทึกการเปลี่ยนแปลงชื่อ</p>
-        <button class="btn-save" onclick="saveHouseNames()">บันทึกชื่อบ้านทั้งหมด</button>
+    <div class="section-card" id="card-snooze">
+        <div style="font-weight:600; margin-bottom:10px;"><i class="fas fa-clock"></i> ตั้งค่าเวลา Snooze (นาที)</div>
+        <div class="name-grid">
+            <div><small>ปุ่มที่ 1</small><input type="number" id="snz1" oninput="markChanged('card-snooze')"></div>
+            <div><small>ปุ่มที่ 2</small><input type="number" id="snz2" oninput="markChanged('card-snooze')"></div>
+            <div><small>ปุ่มที่ 3</small><input type="number" id="snz3" oninput="markChanged('card-snooze')"></div>
+            <div><small>ปุ่มที่ 4</small><input type="number" id="snz4" oninput="markChanged('card-snooze')"></div>
+        </div>
+        <p class="warning-text">⚠️ ข้อมูลเปลี่ยนไป กรุณากดบันทึก</p>
+        <button class="btn-save" onclick="saveSnooze()">บันทึกเวลา Snooze</button>
         <div class="clear"></div>
     </div>
 
-    <div class="section-card" id="card-snooze">
-        <div style="font-weight:600"><i class="fas fa-clock"></i> ตั้งค่าเวลา Snooze (นาที)</div>
-        <div class="name-grid">
-            <input type="number" id="snz1" oninput="markChanged('card-snooze')">
-            <input type="number" id="snz2" oninput="markChanged('card-snooze')">
-            <input type="number" id="snz3" oninput="markChanged('card-snooze')">
-            <input type="number" id="snz4" oninput="markChanged('card-snooze')">
-        </div>
-        <button class="btn-save" onclick="saveSnooze()">บันทึกเวลา Snooze</button>
+    <div class="section-card" id="card-names">
+        <div style="font-weight:600; margin-bottom:10px;"><i class="fas fa-tags"></i> ตั้งชื่อเรียกบ้านแต่ละหลัง</div>
+        <div id="namesContainer" class="name-grid"></div>
+        <p class="warning-text">⚠️ ข้อมูลเปลี่ยนไป กรุณากดบันทึก</p>
+        <button class="btn-save" onclick="saveHouseNames()">บันทึกชื่อบ้านทั้งหมด</button>
         <div class="clear"></div>
     </div>
 </div>
@@ -69,49 +71,70 @@
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
 
-    window.markChanged = (id) => { document.getElementById(id).classList.add('changed'); window.unsaved = true; };
-    window.onbeforeunload = () => window.unsaved ? "ยังไม่ได้บันทึก!" : null;
+    window.markChanged = (id) => { 
+        document.getElementById(id).classList.add('changed'); 
+        window.unsaved = true; 
+    };
+    
+    window.onbeforeunload = () => window.unsaved ? "คุณยังไม่ได้บันทึกข้อมูล ต้องการออกใช่หรือไม่?" : null;
 
-    // บันทึกจำนวนบ้าน
     window.saveTotalHouses = () => {
         const val = parseInt(document.getElementById('totalHouses').value);
         set(ref(database, 'Settings/TotalHouses'), val).then(() => {
-            alert('บันทึกแล้ว'); document.getElementById('card-total').classList.remove('changed');
+            alert('บันทึกจำนวนบ้านแล้ว'); 
+            document.getElementById('card-total').classList.remove('changed');
+            checkRemaining();
         });
     };
 
-    // บันทึกชื่อบ้าน
     window.saveHouseNames = () => {
         const names = {};
         const inputs = document.querySelectorAll('.house-name-input');
         inputs.forEach(inp => { names[inp.dataset.id] = inp.value; });
         set(ref(database, 'Settings/HouseNames'), names).then(() => {
-            alert('บันทึกชื่อบ้านแล้ว'); document.getElementById('card-names').classList.remove('changed');
+            alert('บันทึกชื่อบ้านแล้ว'); 
+            document.getElementById('card-names').classList.remove('changed');
+            checkRemaining();
         });
     };
 
-    // บันทึก Snooze
     window.saveSnooze = () => {
-        const t = [document.getElementById('snz1').value, document.getElementById('snz2').value, document.getElementById('snz3').value, document.getElementById('snz4').value];
+        const t = [
+            parseInt(document.getElementById('snz1').value), 
+            parseInt(document.getElementById('snz2').value), 
+            parseInt(document.getElementById('snz3').value), 
+            parseInt(document.getElementById('snz4').value)
+        ];
         set(ref(database, 'Settings/SnoozeTimes'), t).then(() => {
-            alert('บันทึกเวลาแล้ว'); document.getElementById('card-snooze').classList.remove('changed');
+            alert('บันทึกเวลา Snooze แล้ว'); 
+            document.getElementById('card-snooze').classList.remove('changed');
+            checkRemaining();
         });
     };
 
-    // โหลดข้อมูล
+    function checkRemaining() {
+        if (document.querySelectorAll('.changed').length === 0) window.unsaved = false;
+    }
+
     onValue(ref(database, 'Settings'), (snap) => {
         const d = snap.val();
         if(!d) return;
         document.getElementById('totalHouses').value = d.TotalHouses || 8;
+        
+        // วาดชื่อบ้าน
         const container = document.getElementById('namesContainer');
         container.innerHTML = "";
         for(let i=1; i<=d.TotalHouses; i++){
-            container.innerHTML += `<div><small>หลังที่ ${i}</small><input type="text" class="house-name-input" data-id="House${i}" value="${(d.HouseNames && d.HouseNames['House'+i]) || 'บ้านหลังที่ '+i}" oninput="markChanged('card-names')"></div>`;
+            const currentName = (d.HouseNames && d.HouseNames['House'+i]) || 'บ้านหลังที่ '+i;
+            container.innerHTML += `<div><small>หลังที่ ${i}</small><input type="text" class="house-name-input" data-id="House${i}" value="${currentName}" oninput="markChanged('card-names')"></div>`;
         }
-        document.getElementById('snz1').value = d.SnoozeTimes[0];
-        document.getElementById('snz2').value = d.SnoozeTimes[1];
-        document.getElementById('snz3').value = d.SnoozeTimes[2];
-        document.getElementById('snz4').value = d.SnoozeTimes[3];
+
+        if(d.SnoozeTimes) {
+            document.getElementById('snz1').value = d.SnoozeTimes[0];
+            document.getElementById('snz2').value = d.SnoozeTimes[1];
+            document.getElementById('snz3').value = d.SnoozeTimes[2];
+            document.getElementById('snz4').value = d.SnoozeTimes[3];
+        }
     });
 </script>
 </body>

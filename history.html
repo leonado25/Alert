@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ประวัติเหตุการณ์ - Security Calendar</title>
+    <title>ประวัติเหตุการณ์ - Security History</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -11,7 +11,6 @@
             --primary: #00d4ff; --bg: #0f172a; --card: rgba(30, 41, 59, 0.7); 
             --text: #fff; --danger: #ff4d4d; --success: #2ecc71; --border: rgba(255,255,255,0.1);
         }
-        /* Light Mode Variables */
         .light-mode { 
             --bg: #f1f5f9; --card: #ffffff; --text: #1e293b; 
             --primary: #0284c7; --border: rgba(0,0,0,0.1);
@@ -20,44 +19,57 @@
         body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; transition: 0.5s; }
         
         .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-        .btn-back { color: var(--text); text-decoration: none; background: var(--card); padding: 8px 15px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.9rem; transition: 0.3s; }
+        .btn-back { color: var(--text); text-decoration: none; background: var(--card); padding: 8px 15px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.9rem; transition: 0.3s; cursor: pointer; }
         .btn-back:hover { background: var(--primary); color: #000; }
+        .btn-print { background: var(--success); color: #000; border: none; font-weight: 600; margin-left: 10px; }
 
         /* ส่วนปฏิทิน */
-        .calendar-card { background: var(--card); border-radius: 15px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .calendar-card { background: var(--card); border-radius: 15px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border); }
         .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .month-title { font-size: 1.2rem; font-weight: 600; color: var(--primary); }
-        .nav-btn { cursor: pointer; color: var(--primary); font-size: 1.2rem; padding: 5px 12px; transition: 0.3s; border-radius: 8px; }
-        .nav-btn:hover { background: rgba(0, 212, 255, 0.2); }
+        .nav-btn { cursor: pointer; color: var(--primary); font-size: 1.2rem; padding: 5px 12px; }
 
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; }
         .day-name { font-size: 0.8rem; color: #64748b; padding-bottom: 10px; font-weight: 600; }
         .day { aspect-ratio: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; border-radius: 8px; transition: 0.2s; position: relative; font-size: 0.95rem; }
         .day:hover { background: rgba(0, 212, 255, 0.1); }
         .day.selected { background: var(--primary) !important; color: #000; font-weight: 600; }
-        .event-dot { width: 6px; height: 6px; background: var(--danger); border-radius: 50%; position: absolute; bottom: 4px; box-shadow: 0 0 5px var(--danger); }
+        .event-dot { width: 6px; height: 6px; background: var(--danger); border-radius: 50%; position: absolute; bottom: 4px; }
 
         /* ตารางข้อมูล */
-        .history-list-card { background: var(--card); border-radius: 15px; padding: 15px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .history-list-card { background: var(--card); border-radius: 15px; padding: 15px; border: 1px solid var(--border); overflow-x: auto; }
         .table-header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         h3 { margin: 0; font-size: 1rem; color: var(--primary); }
         
-        table { width: 100%; border-collapse: collapse; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
         th { text-align: left; padding: 12px; color: var(--primary); border-bottom: 2px solid var(--primary); font-size: 0.9rem; }
         td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        .inspector-tag { color: var(--success); font-weight: 600; }
         .log-text { color: var(--text); opacity: 0.8; font-style: italic; }
-        
-        @media (max-width: 600px) {
-            .day { font-size: 0.8rem; }
-            th:nth-child(3), td:nth-child(3) { display: none; } /* ซ่อนระยะเวลาในมือถือเพื่อประหยัดที่ */
+
+        /* --- CSS สำหรับการพิมพ์ --- */
+        @media print {
+            body { background: white !important; color: black !important; padding: 0; }
+            .header, .calendar-card, .btn-back, .btn-print, #btnClearFilter, .nav-btn { display: none !important; }
+            .history-list-card { background: white !important; border: none !important; box-shadow: none !important; width: 100% !important; }
+            table { min-width: 100% !important; border: 1px solid #000 !important; }
+            th { color: black !important; border-bottom: 2px solid #000 !important; background: #eee !important; }
+            td { border-bottom: 1px solid #ddd !important; color: black !important; }
+            .inspector-tag { color: black !important; font-weight: bold; }
+            .log-text { color: black !important; }
+            h3 { color: black !important; text-align: center; font-size: 1.5rem; margin-bottom: 20px; }
+            /* แสดงหัวกระดาษตอนพิมพ์ */
+            body::before { content: "รายงานเหตุการณ์ประจำวัน - ระบบรักษาความปลอดภัยหมู่บ้าน"; display: block; text-align: center; font-weight: bold; font-size: 1.2rem; margin-bottom: 10px; }
         }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <a href="index.html" class="btn-back"><i class="fas fa-arrow-left"></i> กลับหน้าควบคุม</a>
-        <h2 style="margin:0; font-size: 1.3rem;"><i class="fas fa-history"></i> ประวัติ</h2>
+        <a href="index.html" class="btn-back"><i class="fas fa-arrow-left"></i> กลับหน้าหลัก</a>
+        <div>
+            <button class="btn-back btn-print" onclick="printTodayReport()"><i class="fas fa-print"></i> พิมพ์รายงานวันนี้</button>
+        </div>
     </div>
 
     <div class="calendar-card">
@@ -69,9 +81,9 @@
         <div class="calendar-grid" id="calendarGrid"></div>
     </div>
 
-    <div class="history-list-card">
+    <div class="history-list-card" id="printableArea">
         <div class="table-header-flex">
-            <h3 id="tableTitle">รายการทั้งหมดของเดือน</h3>
+            <h3 id="tableTitle">รายการของเดือนนี้</h3>
             <button class="btn-back" id="btnClearFilter" style="display:none; padding: 4px 10px; font-size: 0.7rem;" onclick="resetFilter()">แสดงทั้งเดือน</button>
         </div>
         <table id="historyTable">
@@ -79,6 +91,7 @@
                 <tr>
                     <th>วัน-เวลา</th>
                     <th>บ้านที่เกิดเหตุ</th>
+                    <th>ผู้ตรวจสอบ</th>
                     <th>ระยะเวลา</th>
                     <th>สาเหตุ/บันทึก</th>
                 </tr>
@@ -108,17 +121,13 @@
     let selectedDateStr = null;
     const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 
-    // --- ลอจิกเปลี่ยนธีมตาม Settings ---
     onValue(ref(database, 'Settings'), (snap) => {
         const settings = snap.val() || {};
         const mode = settings.Theme || 'dark';
-        const hour = new Date().getHours();
-        const isDark = mode === 'dark' || (mode === 'auto' && (hour < 6 || hour >= 18));
-        if (isDark) document.body.classList.remove('light-mode');
-        else document.body.classList.add('light-mode');
+        const isDark = mode === 'dark' || (mode === 'auto' && (new Date().getHours() < 6 || new Date().getHours() >= 18));
+        document.body.className = isDark ? '' : 'light-mode';
     });
 
-    // --- ดึงข้อมูลประวัติ ---
     onValue(ref(database, 'History'), (snap) => {
         const data = snap.val();
         allHistory = data ? Object.values(data).sort((a, b) => b.timestamp - a.timestamp) : [];
@@ -130,103 +139,73 @@
         const grid = document.getElementById('calendarGrid');
         const display = document.getElementById('monthDisplay');
         grid.innerHTML = "";
-
         const year = currentViewDate.getFullYear();
         const month = currentViewDate.getMonth();
         display.innerText = `${monthNames[month]} ${year + 543}`;
 
-        const days = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
-        days.forEach(d => grid.innerHTML += `<div class="day-name">${d}</div>`);
-
+        ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].forEach(d => grid.innerHTML += `<div class="day-name">${d}</div>`);
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
 
         for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div></div>`;
-
         for (let d = 1; d <= daysInMonth; d++) {
-            const dateObj = new Date(year, month, d);
-            // ปรับ format ให้ตรงกับที่เก็บใน startTime (YYYY-MM-DD)
-            const fullDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            
-            const hasEvent = allHistory.some(h => h.startTime.startsWith(fullDateStr));
-            
+            const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const hasEvent = allHistory.some(h => h.startTime.startsWith(dateKey));
             const dayEl = document.createElement('div');
-            dayEl.className = 'day' + (selectedDateStr === fullDateStr ? ' selected' : '');
+            dayEl.className = 'day' + (selectedDateStr === dateKey ? ' selected' : '');
             dayEl.innerText = d;
             if (hasEvent) dayEl.innerHTML += `<div class="event-dot"></div>`;
-            
-            dayEl.onclick = () => filterByDate(fullDateStr);
+            dayEl.onclick = () => { selectedDateStr = (selectedDateStr === dateKey) ? null : dateKey; renderCalendar(); renderTable(); };
             grid.appendChild(dayEl);
         }
     }
 
     function renderTable() {
         const body = document.getElementById('historyBody');
-        const title = document.getElementById('tableTitle');
-        const btnClear = document.getElementById('btnClearFilter');
         body.innerHTML = "";
-
-        const year = currentViewDate.getFullYear();
-        const month = currentViewDate.getMonth();
-        
         const filtered = allHistory.filter(item => {
-            if (selectedDateStr) {
-                return item.startTime.startsWith(selectedDateStr);
-            }
-            const itemDate = new Date(item.startTime);
-            return itemDate.getFullYear() === year && itemDate.getMonth() === month;
+            if (selectedDateStr) return item.startTime.startsWith(selectedDateStr);
+            return new Date(item.startTime).getMonth() === currentViewDate.getMonth() && new Date(item.startTime).getFullYear() === currentViewDate.getFullYear();
         });
 
-        if (selectedDateStr) {
-            const d = new Date(selectedDateStr);
-            title.innerText = `เหตุการณ์วันที่ ${d.getDate()} ${monthNames[d.getMonth()]}`;
-            btnClear.style.display = "block";
-        } else {
-            title.innerText = `รายการทั้งหมดของเดือน ${monthNames[month]}`;
-            btnClear.style.display = "none";
-        }
+        document.getElementById('tableTitle').innerText = selectedDateStr ? `เหตุการณ์วันที่ ${selectedDateStr}` : `รายการของเดือน ${monthNames[currentViewDate.getMonth()]}`;
+        document.getElementById('btnClearFilter').style.display = selectedDateStr ? "block" : "none";
 
         filtered.forEach(item => {
             const start = new Date(item.startTime);
             const end = new Date(item.endTime);
-            const timeStr = start.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            const duration = Math.floor(Math.abs(end - start) / 60000);
             
-            // คำนวณระยะเวลา
-            const diffMs = Math.abs(end - start);
-            const diffMins = Math.floor(diffMs / (1000 * 60));
-            const duration = diffMins > 0 ? `${diffMins} นาที` : "ไม่ถึง 1 นาที";
-
-            const row = `<tr>
-                <td>${start.getDate()}/${start.getMonth()+1} | ${timeStr}</td>
-                <td><strong>${item.houseName}</strong></td>
-                <td>${duration}</td>
-                <td class="log-text">${item.log}</td>
-            </tr>`;
-            body.insertAdjacentHTML('beforeend', row);
+            body.insertAdjacentHTML('beforeend', `
+                <tr>
+                    <td>${start.getDate()}/${start.getMonth()+1} | ${start.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</td>
+                    <td><strong>${item.houseName}</strong></td>
+                    <td class="inspector-tag"><i class="fas fa-user-shield"></i> ${item.inspector || '-'}</td>
+                    <td>${duration > 0 ? duration + ' นาที' : 'ไม่ถึง 1 นาที'}</td>
+                    <td class="log-text">${item.log}</td>
+                </tr>
+            `);
         });
-
-        if (filtered.length === 0) {
-            body.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:40px; opacity:0.5;">ไม่มีประวัติข้อมูล</td></tr>`;
-        }
+        if (filtered.length === 0) body.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:40px; opacity:0.5;">ไม่มีข้อมูล</td></tr>`;
     }
 
-    window.changeMonth = (val) => {
-        selectedDateStr = null;
-        currentViewDate.setMonth(currentViewDate.getMonth() + val);
-        renderCalendar();
-        renderTable();
-    };
+    window.changeMonth = (val) => { selectedDateStr = null; currentViewDate.setMonth(currentViewDate.getMonth() + val); renderCalendar(); renderTable(); };
+    window.resetFilter = () => { selectedDateStr = null; renderCalendar(); renderTable(); };
 
-    window.filterByDate = (dateStr) => {
-        selectedDateStr = (selectedDateStr === dateStr) ? null : dateStr;
+    // --- ฟังก์ชันพิมพ์เฉพาะวันนี้ ---
+    window.printTodayReport = () => {
+        const today = new Date();
+        const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        
+        // กรองข้อมูลให้เหลือแค่ของวันนี้ก่อนพิมพ์
+        selectedDateStr = dateStr;
         renderCalendar();
         renderTable();
-    };
 
-    window.resetFilter = () => {
-        selectedDateStr = null;
-        renderCalendar();
-        renderTable();
+        // สั่งพิมพ์
+        setTimeout(() => {
+            window.print();
+        }, 500); // รอ UI รีเฟรชแป๊บนึงแล้วค่อยพิมพ์
     };
 </script>
 </body>

@@ -27,7 +27,8 @@
         .house-card.checking { border-color: var(--warning); background: rgba(241, 196, 15, 0.15); }
         
         .house-main { display: flex; align-items: center; gap: 15px; }
-        .house-icon { font-size: 2.2rem; color: var(--primary); display: block !important; }
+        .house-icon-container { font-size: 2.2rem; min-width: 50px; text-align: center; }
+        .house-icon { color: var(--primary); display: inline-block !important; }
         .alarm .house-icon { color: var(--danger); animation: shake 0.5s infinite; }
         .checking .house-icon { color: var(--warning); }
 
@@ -38,7 +39,7 @@
         .snooze-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 12px; }
         .btn-snz { padding: 8px 0; border: none; border-radius: 5px; background: var(--warning); color: #000; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
         
-        .timer-display { font-size: 0.9rem; color: var(--warning); font-weight: 600; margin-bottom: 10px; display: block; }
+        .timer-display { font-size: 0.9rem; color: var(--warning); font-weight: 600; margin-bottom: 10px; display: block; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 5px; }
 
         .btn-action { width: 100%; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; font-family: 'Prompt'; }
         .btn-solve { background: var(--success); }
@@ -82,7 +83,7 @@
     const database = getDatabase(app);
     let settings = {};
     let localStatus = {}; 
-    let countdowns = {}; // เก็บตัวแปร Interval สำหรับนับถอยหลัง
+    let countdowns = {};
 
     function updateTheme(mode) {
         const hour = new Date().getHours();
@@ -93,133 +94,4 @@
     onValue(ref(database, 'Settings'), (snap) => {
         settings = snap.val() || {};
         document.getElementById('villageDisplay').innerText = settings.VillageName || "Smart Village";
-        updateTheme(settings.Theme);
-        renderHouses();
-    });
-
-    function renderHouses() {
-        const grid = document.getElementById('villageGrid'); grid.innerHTML = "";
-        for(let i=1; i<=settings.TotalHouses; i++){
-            const id = `House${i}`;
-            const name = (settings.HouseNames && settings.HouseNames[id]) || `หลังที่ ${i}`;
-            grid.innerHTML += `
-                <div class="house-card" id="card-${id}">
-                    <div class="house-main">
-                        <i class="fas fa-house-shield house-icon"></i>
-                        <div><div style="font-weight:600">${name}</div><small id="txt-${id}">ปกติ</small></div>
-                    </div>
-                    <div class="controls-panel">
-                        <div id="panel-step-1-${id}">
-                            <div class="snooze-title"><i class="fas fa-user-check"></i> ปิดเสียงเตือนชั่วคราว เพื่อเข้าตรวจสอบ</div>
-                            <span id="timer-${id}" class="timer-display"></span>
-                            <div class="snooze-grid">${(settings.SnoozeTimes || [5,15,30,60]).map(t => `<button class="btn-snz" onclick="startChecking('${id}', ${t})">${t} ม.</button>`).join('')}</div>
-                            <button class="btn-action btn-solve" onclick="tryResolve('${id}')">แก้ไขเรียบร้อยแล้ว</button>
-                        </div>
-                        <div id="panel-step-2-${id}" class="solve-step-2">
-                            <input type="text" id="log-${id}" class="input-log" placeholder="พิมพ์สาเหตุปัญหาที่พบ...">
-                            <button class="btn-action btn-confirm" onclick="finalSave('${id}')">บันทึกและปิดระบบ</button>
-                        </div>
-                    </div>
-                </div>`;
-        }
-        listenHouses();
-    }
-
-    function listenHouses() {
-        onValue(ref(database, 'Houses'), (snap) => {
-            const data = snap.val() || {};
-            let alerts = [];
-            const siren = document.getElementById('siren');
-            let shouldPlaySiren = false;
-
-            for(let i=1; i<=settings.TotalHouses; i++){
-                const id = 'House' + i;
-                const card = document.getElementById('card-' + id);
-                const txt = document.getElementById('txt-' + id);
-                const status = data[id];
-
-                if(status == 1 || localStatus[id] === 'checking') {
-                    if(localStatus[id] === 'checking') {
-                        card.className = 'house-card checking';
-                        txt.innerText = "กำลังเข้าตรวจสอบ...";
-                    } else {
-                        card.className = 'house-card alarm';
-                        txt.innerText = "แจ้งเตือน";
-                        shouldPlaySiren = true;
-                    }
-                    alerts.push((settings.HouseNames && settings.HouseNames[id]) || 'หลังที่ '+i);
-                } else {
-                    card.className = 'house-card';
-                    txt.innerText = "ปกติ";
-                }
-            }
-            document.getElementById('quickAlert').style.display = alerts.length ? 'block' : 'none';
-            document.getElementById('alertList').innerText = alerts.join(', ');
-            if(shouldPlaySiren) siren.play().catch(()=>{}); else siren.pause();
-        });
-    }
-
-    window.startChecking = (id, minutes) => {
-        localStatus[id] = 'checking';
-        document.getElementById('siren').pause();
-        
-        // ล้าง Timer เดิมถ้ามี
-        if(countdowns[id]) clearInterval(countdowns[id]);
-
-        let timeLeft = minutes * 60;
-        const timerEl = document.getElementById(`timer-${id}`);
-        
-        countdowns[id] = setInterval(() => {
-            let m = Math.floor(timeLeft / 60);
-            let s = timeLeft % 60;
-            timerEl.innerText = `⏳ เหลือเวลาตรวจสอบ: ${m}:${s < 10 ? '0' : ''}${s}`;
-            
-            if (timeLeft <= 0) {
-                clearInterval(countdowns[id]);
-                delete localStatus[id];
-                timerEl.innerText = "";
-                alert(`หมดเวลาตรวจสอบบ้าน ${id} ระบบจะกลับเข้าสู่โหมดแจ้งเตือน`);
-            }
-            timeLeft--;
-        }, 1000);
-    };
-
-    window.tryResolve = (id) => {
-        onValue(ref(database, 'Houses/'+id), (snap) => {
-            if(snap.val() == 1) {
-                alert("❌ การแก้ไขยังไม่เรียบร้อย! ระบบตรวจพบว่าสายสัญญาณยังมีการช็อตอยู่");
-            } else {
-                document.getElementById('panel-step-1-'+id).style.display = 'none';
-                document.getElementById('panel-step-2-'+id).style.display = 'block';
-            }
-        }, { onlyOnce: true });
-    };
-
-    window.finalSave = (id) => {
-        const logText = document.getElementById('log-'+id).value;
-        if(!logText.trim()) {
-            alert("⚠️ ไม่สามารถเว้นว่างได้! กรุณาพิมพ์สาเหตุของปัญหา");
-            return;
-        }
-        
-        alert("✅ บันทึกสำเร็จ: " + logText);
-        
-        // ล้างสถานะและ Timer
-        delete localStatus[id];
-        if(countdowns[id]) {
-            clearInterval(countdowns[id]);
-            document.getElementById(`timer-${id}`).innerText = "";
-        }
-
-        document.getElementById('panel-step-2-'+id).style.display = 'none';
-        document.getElementById('panel-step-1-'+id).style.display = 'block';
-        document.getElementById('log-'+id).value = "";
-    };
-
-    window.scrollToAlarm = () => {
-        const el = document.querySelector('.alarm, .checking');
-        if(el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    };
-</script>
-</body>
-</html>
+        updateTheme(settings.Theme

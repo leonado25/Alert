@@ -3,37 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Village Security - Pro Monitoring</title>
+    <title>Village Security - Stable</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root { --primary: #00d4ff; --bg: #0f172a; --card: rgba(30, 41, 59, 0.7); --text: #fff; --danger: #ff4d4d; --success: #2ecc71; --warning: #f1c40f; }
         .light-mode { --bg: #f1f5f9; --card: #ffffff; --text: #1e293b; --primary: #0284c7; }
         body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; transition: 0.5s; }
-        .header { text-align: center; margin-bottom: 20px; }
         .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; }
-        .stat-card { background: var(--card); padding: 15px; border-radius: 15px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
-        .stat-val { font-size: 1.6rem; font-weight: 600; color: var(--primary); text-decoration: underline; cursor: pointer; }
+        .stat-card { background: var(--card); padding: 15px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
         .houses-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .house-card { background: var(--card); border-radius: 20px; padding: 20px; border: 2px solid transparent; transition: 0.3s; position: relative; }
-        .house-card.alert { border-color: var(--danger); animation: pulse 2s infinite; background: rgba(255, 77, 77, 0.1); }
+        .house-card { background: var(--card); border-radius: 20px; padding: 20px; border: 2px solid transparent; transition: 0.3s; }
+        .house-card.alert { border-color: var(--danger); background: rgba(255, 77, 77, 0.1); }
         .house-card.snoozed { border-color: var(--warning); }
-        .btn-action { width: 100%; padding: 12px; border: none; border-radius: 10px; font-family: 'Prompt'; font-weight: 600; cursor: pointer; margin-top: 10px; }
-        .input-log { width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 12px; border-radius: 8px; margin-bottom: 8px; box-sizing: border-box; font-family: 'Prompt'; }
-        .light-mode .input-log { background: #fff; color: #000; border-color: #ccc; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 77, 77, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0); } }
+        .btn-action { width: 100%; padding: 10px; border: none; border-radius: 8px; font-family: 'Prompt'; font-weight: 600; cursor: pointer; margin-top: 8px; }
+        .input-log { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; margin-top: 10px; box-sizing: border-box; }
     </style>
 </head>
-<body onclick="enableAudio()">
+<body onclick="document.getElementById('siren').pause()">
 
-    <div class="header">
-        <h1 id="vName">Smart Village</h1>
-    </div>
+    <h1 style="text-align: center;" id="vName">Smart Village</h1>
 
     <div class="stats-bar">
-        <div class="stat-card"><span>ความปลอดภัย</span><div class="stat-val" style="text-decoration:none;">✅</div></div>
-        <div class="stat-card"><span>เดือนนี้</span><a href="history.html" style="text-decoration:none;"><div class="stat-val" id="mCount">0</div></a></div>
-        <div class="stat-card"><span>ปีนี้</span><a href="history.html" style="text-decoration:none;"><div class="stat-val" id="yCount">0</div></a></div>
+        <div class="stat-card"><span>ความปลอดภัย</span><div>✅</div></div>
+        <div class="stat-card"><span>เดือนนี้</span><a href="history.html" style="color:var(--primary); font-size:1.5rem; text-decoration:none;" id="mCount">0</a></div>
+        <div class="stat-card"><span>ปีนี้</span><a href="history.html" style="color:var(--primary); font-size:1.5rem; text-decoration:none;" id="yCount">0</a></div>
     </div>
 
     <div class="houses-grid" id="container"></div>
@@ -57,106 +51,89 @@
     const siren = document.getElementById('siren');
 
     let settings = {};
-    let activeAlarms = {}; // { House1: { startTime, isSnoozed, snoozeUntil } }
-    let audioEnabled = false;
+    let activeAlarms = {}; // เก็บข้อมูลบ้านที่กำลังมีปัญหา
 
-    window.enableAudio = () => { audioEnabled = true; };
-
-    // 1. โหลด Settings (ชื่อ, ธีม, เวลา Snooze)
+    // 1. ดึง Settings
     onValue(ref(database, 'Settings'), (s) => {
         settings = s.val() || {};
         document.getElementById('vName').innerText = settings.VillageName || "Smart Village";
         document.body.className = settings.Theme === 'light' ? 'light-mode' : '';
     });
 
-    // 2. ฟังค่าจาก Sensor และจัดการ Latching
+    // 2. ดึงค่าจาก Houses และคุมลอจิก Latch/Snooze
     onValue(ref(database, 'Houses'), (snap) => {
         const houses = snap.val() || {};
         const container = document.getElementById('container');
         container.innerHTML = '';
-        let shouldPlaySiren = false;
+        let playSiren = false;
         const now = Date.now();
 
         const total = parseInt(settings.TotalHouses) || 10;
         for (let i = 1; i <= total; i++) {
             const id = `House${i}`;
-            const sensorVal = houses[id]; // รับ 0 หรือ 1 ตรงๆ จากบอร์ด
-            
-            // ลอจิก Latching: ถ้าเคยแจ้งเตือนแล้ว (แม้ตอนนี้ sensor จะเป็น 0) ก็ต้องค้างสถานะไว้
-            if (sensorVal == 1 && !activeAlarms[id]) {
-                activeAlarms[id] = { startTime: new Date().toISOString(), isSnoozed: false, snoozeUntil: 0 };
+            const sensor = houses[id] || 0; // 0 หรือ 1
+
+            // ถ้า Sensor เป็น 1 และยังไม่มีในรายการ Alarm ให้เพิ่มเข้าไป (Latch เริ่มต้น)
+            if (sensor == 1 && !activeAlarms[id]) {
+                activeAlarms[id] = { startTime: new Date().toISOString(), snoozed: false, until: 0 };
             }
 
             const alarm = activeAlarms[id];
-            const isAlarming = !!alarm;
-            
-            // ตรวจสอบเงื่อนไข Snooze: ถ้าครบเวลาแล้วแต่ Sensor ยังเป็น 1 ให้กลับมาดังใหม่
-            if (alarm && alarm.isSnoozed && now > alarm.snoozeUntil) {
-                if (sensorVal == 1) {
-                    alarm.isSnoozed = false; // กลับมาดังใหม่
-                }
+            const hasAlarm = !!alarm;
+
+            // เช็คว่าหมดเวลา Snooze หรือยัง
+            if (hasAlarm && alarm.snoozed && now > alarm.until) {
+                if (sensor == 1) alarm.snoozed = false; // ถ้าสายยังช็อต ให้กลับมาดัง
             }
 
-            // ตัดสินใจว่าต้องเปิดไซเรนไหม
-            if (isAlarming && !alarm.isSnoozed) shouldPlaySiren = true;
+            // ถ้ามี Alarm และไม่ได้ Snooze อยู่ ให้เปิดไซเรน
+            if (hasAlarm && !alarm.snoozed) playSiren = true;
 
-            const houseName = (settings.HouseNames && settings.HouseNames[id]) || `บ้านหลังที่ ${i}`;
+            const name = (settings.HouseNames && settings.HouseNames[id]) || `บ้านหลังที่ ${i}`;
             const card = document.createElement('div');
-            card.className = `house-card ${isAlarming ? (alarm.isSnoozed ? 'snoozed' : 'alert') : ''}`;
-            
+            card.className = `house-card ${hasAlarm ? (alarm.snoozed ? 'snoozed' : 'alert') : ''}`;
             card.innerHTML = `
-                <h2>${houseName}</h2>
-                <p>${isAlarming ? (alarm.isSnoozed ? '⚠️ ระงับเสียงชั่วคราว' : '🚨 แจ้งเตือนบุกรุก!') : '✅ ปกติ'}</p>
-                ${isAlarming && !alarm.isSnoozed ? `<button class="btn-action" style="background:var(--warning)" onclick="window.snoozeAlarm('${id}')">Snooze (เงียบชั่วคราว)</button>` : ''}
-                ${isAlarming ? `
-                    <div style="margin-top:10px;">
-                        <input type="text" id="log-${id}" class="input-log" placeholder="ระบุสาเหตุเพื่อปิดงาน...">
-                        <button class="btn-action" style="background:var(--success)" onclick="window.closeCase('${id}')">บันทึกและปิดเคส</button>
-                    </div>
-                ` : ''}
+                <h3>${name}</h3>
+                <p>${hasAlarm ? (alarm.snoozed ? '🟡 พักเสียงชั่วคราว' : '🔴 แจ้งเตือนบุกรุก!') : '🟢 ปกติ'}</p>
+                ${hasAlarm && !alarm.snoozed ? `<button class="btn-action" style="background:var(--warning)" onclick="window.doSnooze('${id}')">Snooze</button>` : ''}
+                ${hasAlarm ? `<input type="text" id="log-${id}" class="input-log" placeholder="พิมพ์สาเหตุ..."><button class="btn-action" style="background:var(--success); color:white" onclick="window.doClose('${id}')">ปิดงาน</button>` : ''}
             `;
             container.appendChild(card);
         }
 
-        if (shouldPlaySiren && audioEnabled) siren.play().catch(()=>{});
-        else siren.pause();
+        if (playSiren) siren.play().catch(()=>{}); else siren.pause();
     });
 
-    // 3. ฟังก์ชัน Snooze
-    window.snoozeAlarm = (id) => {
-        if (activeAlarms[id]) {
-            const snoozeMinutes = parseInt(settings.SnoozeTime) || 5; // ดึงจาก Edit
-            activeAlarms[id].isSnoozed = true;
-            activeAlarms[id].snoozeUntil = Date.now() + (snoozeMinutes * 60 * 1000);
-            // Re-render UI ทันที
-            onValue(ref(database, 'Houses'), ()=>{}, {onlyOnce: true});
-        }
+    window.doSnooze = (id) => {
+        const time = parseInt(settings.SnoozeTime) || 5;
+        activeAlarms[id].snoozed = true;
+        activeAlarms[id].until = Date.now() + (time * 60 * 1000);
+        renderManually();
     };
 
-    // 4. ฟังก์ชันปิดเคส (Clear Case + Save History)
-    window.closeCase = (id) => {
+    window.doClose = (id) => {
         const log = document.getElementById(`log-${id}`).value;
-        if (!log) return alert("กรุณากรอกสาเหตุก่อนปิดงานค่ะคุณลี");
-
-        const alarm = activeAlarms[id];
-        const historyRef = push(ref(database, 'History'));
-        set(historyRef, {
+        if(!log) return alert("กรุณาพิมพ์สาเหตุค่ะ");
+        
+        push(ref(database, 'History'), {
             houseName: (settings.HouseNames && settings.HouseNames[id]) || id,
-            startTime: alarm.startTime,
+            startTime: activeAlarms[id].startTime,
             endTime: new Date().toISOString(),
             log: log,
             timestamp: serverTimestamp()
         }).then(() => {
-            delete activeAlarms[id]; // ปลดล็อค Latch
-            alert("ปิดเคสและบันทึกประวัติเรียบร้อยค่ะ");
+            delete activeAlarms[id];
+            alert("ปิดงานเรียบร้อย");
+            renderManually();
         });
     };
 
-    // นับสถิติ
+    function renderManually() { onValue(ref(database, 'Houses'), ()=>{}, {onlyOnce: true}); }
+
     onValue(ref(database, 'History'), (snap) => {
-        const data = snap.val() || {};
-        document.getElementById('mCount').innerText = Object.keys(data).length;
-        document.getElementById('yCount').innerText = Object.keys(data).length;
+        const count = snap.val() ? Object.keys(snap.val()).length : 0;
+        document.getElementById('mCount').innerText = count;
+        document.getElementById('yCount').innerText = count;
     });
 </script>
 </body>

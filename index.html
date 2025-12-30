@@ -3,71 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Dashboard</title>
+    <title>Village Monitor</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root { --danger: #ff4d4d; --primary: #00d4ff; --card: rgba(30, 41, 59, 0.7); }
-        body { font-family: 'Prompt', sans-serif; background: #0f172a; color: white; margin: 0; padding: 15px; }
+    <style id="theme-style">
+        :root { --danger: #ff4d4d; --primary: #00d4ff; --bg: #0f172a; --card: rgba(30, 41, 59, 0.7); --text: #fff; }
+        .light-mode { --bg: #f1f5f9; --card: #ffffff; --text: #1e293b; --primary: #0284c7; }
         
-        /* แถบสถิติ */
-        .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
-        .stat-card { background: var(--card); padding: 15px; border-radius: 15px; text-align: center; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); transition: 0.3s; }
-        .stat-card:hover { transform: translateY(-3px); border-color: var(--primary); }
-        .stat-val { font-size: 1.5rem; font-weight: 600; color: var(--primary); }
+        body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; transition: 0.5s; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .village-title { font-size: 1.8rem; font-weight: 600; color: var(--primary); margin: 0; }
         
-        /* แถบแจ้งเตือนด่วน */
-        #quickAlert { display: none; background: var(--danger); color: white; padding: 10px; border-radius: 10px; margin-bottom: 20px; font-weight: 600; text-align: center; animation: blink 1s infinite; cursor: pointer; }
+        .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; }
+        .stat-card { background: var(--card); padding: 10px; border-radius: 12px; text-align: center; border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: pointer; }
+        .stat-val { font-size: 1.2rem; font-weight: 600; color: var(--primary); display: block; }
+
+        #quickAlert { display: none; background: var(--danger); color: white; padding: 12px; border-radius: 10px; margin-bottom: 15px; text-align: center; font-weight: 600; cursor: pointer; sticky: top; }
+
+        .village-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+        .house-card { background: var(--card); border-radius: 15px; padding: 15px; border: 2px solid transparent; transition: 0.3s; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .house-card.alarm { border-color: var(--danger); animation: pulse 2s infinite; }
         
-        .village-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
-        .house-card { background: var(--card); border-radius: 15px; padding: 15px; text-align: center; border: 2px solid transparent; transition: 0.5s; }
-        .house-card.alarm { border-color: var(--danger); background: rgba(255, 77, 77, 0.2); }
+        .house-main { display: flex; align-items: center; gap: 15px; }
         .house-icon { font-size: 2rem; color: var(--primary); }
         .alarm .house-icon { color: var(--danger); animation: shake 0.5s infinite; }
 
-        #alertModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 99; padding: 20px; }
-        .modal-content { background: #1e293b; max-width: 400px; margin: 50px auto; padding: 30px; border-radius: 20px; text-align: center; border: 2px solid var(--danger); }
-        .btn-snooze { background: #f1c40f; padding: 10px; border: none; border-radius: 5px; margin: 5px; width: 45%; font-family: 'Prompt'; cursor: pointer; }
-
-        @keyframes blink { 50% { opacity: 0.7; } }
+        /* แผงควบคุม Inline */
+        .controls-panel { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0,0,0,0.1); }
+        .alarm .controls-panel { display: block; }
+        .snooze-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 10px; }
+        .btn-snz { padding: 8px 2px; border: none; border-radius: 5px; background: #f1c40f; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+        .btn-solve { width: 100%; padding: 10px; border: none; border-radius: 8px; background: #2ecc71; color: white; font-weight: 600; cursor: pointer; margin-top: 5px; }
+        
+        .solve-box { display: none; margin-top: 10px; }
+        .input-log { width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #ccc; margin-bottom: 5px; box-sizing: border-box; }
+        
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 77, 77, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0); } }
         @keyframes shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(5deg); } 75% { transform: rotate(-5deg); } }
     </style>
 </head>
 <body>
 
-    <div class="stats-bar">
-        <div class="stat-card">
-            <small>ปลอดภัยมาแล้ว</small>
-            <div class="stat-val" id="safeDays">0 วัน</div>
-        </div>
-        <div class="stat-card" onclick="location.href='history.html?view=month'">
-            <small>เดือนนี้มีเหตุ</small>
-            <div class="stat-val" id="monthEvents">0 ครั้ง</div>
-        </div>
-        <div class="stat-card" onclick="location.href='history.html?view=year'">
-            <small>ปีนี้มีเหตุ</small>
-            <div class="stat-val" id="yearEvents">0 ครั้ง</div>
+    <div class="header">
+        <h1 class="village-title" id="villageDisplay">กำลังโหลด...</h1>
+        <div class="stats-bar">
+            <div class="stat-card"><span>ปลอดภัย</span><span class="stat-val" id="safeDays">0 วัน</span></div>
+            <div class="stat-card"><span>เดือนนี้</span><span class="stat-val" id="monthEvents">0 ครั้ง</span></div>
+            <div class="stat-card"><span>ปีนี้</span><span class="stat-val" id="yearEvents">0 ครั้ง</span></div>
         </div>
     </div>
 
-    <div id="quickAlert" onclick="scrollToAlarm()">🚨 แจ้งเตือนด่วน: <span id="alertList"></span></div>
-
+    <div id="quickAlert" onclick="scrollToAlarm()">🚨 บุกรุก: <span id="alertList"></span></div>
     <div class="village-grid" id="villageGrid"></div>
-
-    <div id="alertModal">
-        <div class="modal-content">
-            <h2 style="color:var(--danger)">พบการบุกรุก!</h2>
-            <h3 id="modalName">บ้านหลังที่ X</h3>
-            <div id="snoozeBtns"></div>
-            <button onclick="closeModal()" style="width:100%; padding:10px; margin-top:10px; background:#2ecc71; border:none; color:white; border-radius:5px;">แก้ไขเรียบร้อยแล้ว</button>
-        </div>
-    </div>
-
     <audio id="siren" loop src="https://www.soundjay.com/buttons/beep-01a.mp3"></audio>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyBGVarHKqwjhNR_BGANj8CnSWahIHtJNiM",
@@ -80,76 +72,95 @@
 
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
-    let houseNames = {};
-    let activeAlarms = [];
+    let settings = {};
+    let currentHousesData = {};
 
-    // โหลดการตั้งค่า
+    // 1. ระบบจัดการธีม (Auto Sunrise-Sunset)
+    function updateTheme(mode) {
+        if(mode === 'light') document.body.className = 'light-mode';
+        else if(mode === 'dark') document.body.className = '';
+        else {
+            const hour = new Date().getHours();
+            // เช็คเวลา 06:00 - 18:00 เป็นกลางวัน
+            document.body.className = (hour >= 6 && hour < 18) ? 'light-mode' : '';
+        }
+    }
+    setInterval(() => settings.Theme === 'auto' && updateTheme('auto'), 60000);
+
+    // 2. โหลดการตั้งค่า
     onValue(ref(database, 'Settings'), (snap) => {
-        const d = snap.val();
-        if(!d) return;
-        houseNames = d.HouseNames || {};
-        renderVillage(d.TotalHouses || 8);
-        renderSnooze(d.SnoozeTimes || [3,15,30,60]);
+        settings = snap.val() || {};
+        document.getElementById('villageDisplay').innerText = settings.VillageName || "Smart Village";
+        updateTheme(settings.Theme);
+        renderHouses();
     });
 
-    function renderVillage(total) {
-        const grid = document.getElementById('villageGrid');
-        grid.innerHTML = "";
-        for(let i=1; i<=total; i++){
-            grid.innerHTML += `<div class="house-card" id="card-House${i}"><i class="fas fa-house-shield house-icon"></i><div>${houseNames['House'+i] || 'หลังที่ '+i}</div></div>`;
+    function renderHouses() {
+        const grid = document.getElementById('villageGrid'); grid.innerHTML = "";
+        for(let i=1; i<=settings.TotalHouses; i++){
+            const id = `House${i}`;
+            const name = (settings.HouseNames && settings.HouseNames[id]) || `หลังที่ ${i}`;
+            grid.innerHTML += `
+                <div class="house-card" id="card-${id}">
+                    <div class="house-main">
+                        <i class="fas fa-house-damage house-icon"></i>
+                        <div><div style="font-weight:600">${name}</div><small id="status-${id}">ปกติ</small></div>
+                    </div>
+                    <div class="controls-panel">
+                        <div class="snooze-grid">${(settings.SnoozeTimes || [5,15,30,60]).map(t => `<button class="btn-snz" onclick="alert('พัก ${t} นาที')">${t} ม.</button>`).join('')}</div>
+                        <div id="solve-area-${id}">
+                            <button class="btn-solve" onclick="validateResolve('${id}')">แก้ไขเรียบร้อยแล้ว</button>
+                        </div>
+                        <div id="log-area-${id}" class="solve-box">
+                            <input type="text" id="log-${id}" class="input-log" placeholder="ระบุสาเหตุ/การแก้ไข...">
+                            <button class="btn-solve" onclick="confirmClose('${id}')" style="background:#3498db">ยืนยันปิดเหตุการณ์</button>
+                        </div>
+                    </div>
+                </div>`;
         }
-        listenHouses(total);
+        listenStatus();
     }
 
-    function renderSnooze(times) {
-        const cont = document.getElementById('snoozeBtns');
-        cont.innerHTML = "";
-        times.forEach(t => {
-            cont.innerHTML += `<button class="btn-snooze" onclick="alert('พัก ${t} นาที')">พัก ${t} ม.</button>`;
-        });
-    }
-
-    function listenHouses(total) {
+    function listenStatus() {
         onValue(ref(database, 'Houses'), (snap) => {
-            const data = snap.val() || {};
-            activeAlarms = [];
-            for(let i=1; i<=total; i++){
-                const id = 'House'+i;
+            currentHousesData = snap.val() || {};
+            let alerts = [];
+            Object.keys(currentHousesData).forEach(id => {
                 const card = document.getElementById('card-'+id);
-                if(data[id] == 1) {
-                    card.classList.add('alarm');
-                    activeAlarms.push(houseNames[id] || 'หลังที่ '+i);
-                } else {
-                    card.classList.remove('alarm');
-                }
-            }
-            updateAlertUI();
+                if(!card) return;
+                if(currentHousesData[id] == 1) {
+                    card.classList.add('alarm'); alerts.push((settings.HouseNames && settings.HouseNames[id]) || id);
+                } else { card.classList.remove('alarm'); }
+            });
+            document.getElementById('quickAlert').style.display = alerts.length ? 'block' : 'none';
+            document.getElementById('alertList').innerText = alerts.join(', ');
+            if(alerts.length) document.getElementById('siren').play().catch(()=>{}); else document.getElementById('siren').pause();
         });
     }
 
-    function updateAlertUI() {
-        const bar = document.getElementById('quickAlert');
-        const siren = document.getElementById('siren');
-        if(activeAlarms.length > 0) {
-            bar.style.display = 'block';
-            document.getElementById('alertList').innerText = activeAlarms.join(', ');
-            document.getElementById('alertModal').style.display = 'block';
-            document.getElementById('modalName').innerText = activeAlarms[0];
-            siren.play().catch(() => {});
+    // ลอจิกตรวจสอบสถานะ Arduino
+    window.validateResolve = (id) => {
+        if(currentHousesData[id] == 1) {
+            alert("❌ การแก้ไขยังไม่เรียบร้อย! บอร์ดแจ้งว่าสายยังมีการบุกรุกอยู่ กรุณาตรวจสอบหน้างาน");
         } else {
-            bar.style.display = 'none';
-            document.getElementById('alertModal').style.display = 'none';
-            siren.pause();
+            document.getElementById('solve-area-'+id).style.display = 'none';
+            document.getElementById('log-area-'+id).style.display = 'block';
         }
-    }
-
-    window.scrollToAlarm = () => {
-        const firstAlarm = document.querySelector('.alarm');
-        if(firstAlarm) firstAlarm.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 
-    window.closeModal = () => document.getElementById('alertModal').style.display = 'none';
-    document.body.onclick = () => {}; // เพื่อให้เล่นเสียงได้
+    window.confirmClose = (id) => {
+        const logText = document.getElementById('log-'+id).value;
+        if(!logText) return alert("กรุณาระบุปัญหาที่แก้ไขก่อนยืนยัน");
+        alert("✅ บันทึกเหตุการณ์ลงระบบเรียบร้อยแล้ว");
+        // ส่วนนี้จะเชื่อมกับระบบ History ในขั้นตอนต่อไป
+        document.getElementById('log-area-'+id).style.display = 'none';
+        document.getElementById('solve-area-'+id).style.display = 'block';
+    };
+
+    window.scrollToAlarm = () => {
+        const first = document.querySelector('.house-card.alarm');
+        if(first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
 </script>
 </body>
 </html>

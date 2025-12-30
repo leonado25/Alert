@@ -50,11 +50,21 @@
 
     <div class="header">
         <h1 class="village-title" id="villageDisplay">กำลังโหลด...</h1>
-        <div class="stats-bar">
-            <div class="stat-card"><span>ปลอดภัย</span><span class="stat-val" id="safeDays">0 วัน</span></div>
-            <div class="stat-card"><span>เดือนนี้</span><span class="stat-val" id="monthEvents">0 ครั้ง</span></div>
-            <div class="stat-card"><span>ปีนี้</span><span class="stat-val" id="yearEvents">0 ครั้ง</span></div>
+       <div class="stats-bar">
+    <div class="stat-card"><span>ปลอดภัย</span><span class="stat-val" id="safeDays">0 วัน</span></div>
+    
+    <a href="history.html" style="text-decoration: none;">
+        <div class="stat-card" style="cursor: pointer; border-color: var(--primary);">
+            <span>เดือนนี้</span><span class="stat-val" id="monthEvents">0 ครั้ง</span>
         </div>
+    </a>
+    
+    <a href="history.html" style="text-decoration: none;">
+        <div class="stat-card" style="cursor: pointer; border-color: var(--primary);">
+            <span>ปีนี้</span><span class="stat-val" id="yearEvents">0 ครั้ง</span>
+        </div>
+    </a>
+</div>
     </div>
     <div id="quickAlert" onclick="scrollToAlarm()">🚨 แจ้งเตือน: <span id="alertList"></span></div>
     <div class="village-grid" id="villageGrid"></div>
@@ -240,3 +250,4 @@
 </script>
 </body>
 </html>
+

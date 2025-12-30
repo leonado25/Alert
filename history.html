@@ -3,73 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security History - ประวัติเหตุการณ์</title>
+    <title>ประวัติเหตุการณ์ - Security Calendar</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { --primary: #00d4ff; --bg: #0f172a; --card: rgba(30, 41, 59, 0.7); --text: #fff; --success: #2ecc71; }
-        body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; }
-        .btn-back { color: var(--text); text-decoration: none; background: var(--card); padding: 10px 20px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); transition: 0.3s; }
-        .btn-back:hover { background: var(--primary); color: #000; }
+        :root { --primary: #00d4ff; --bg: #0f172a; --card: rgba(30, 41, 59, 0.7); --text: #fff; --danger: #ff4d4d; --success: #2ecc71; }
+        body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; }
         
-        .history-container { background: var(--card); border-radius: 20px; padding: 20px; border: 1px solid rgba(255,255,255,0.1); }
-        h2 { color: var(--primary); margin-top: 0; }
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .btn-back { color: var(--text); text-decoration: none; background: var(--card); padding: 8px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); font-size: 0.9rem; }
 
-        .filter-section { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
-        select { background: #1e293b; color: white; border: 1px solid var(--primary); padding: 8px; border-radius: 5px; font-family: 'Prompt'; }
+        /* ส่วนปฏิทิน */
+        .calendar-card { background: var(--card); border-radius: 15px; padding: 20px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); }
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .month-title { font-size: 1.2rem; font-weight: 600; color: var(--primary); }
+        .nav-btn { cursor: pointer; color: var(--primary); font-size: 1.2rem; padding: 5px 10px; transition: 0.3s; }
+        .nav-btn:hover { background: rgba(0, 212, 255, 0.2); border-radius: 5px; }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { text-align: left; padding: 15px; background: rgba(0, 212, 255, 0.1); color: var(--primary); border-bottom: 2px solid var(--primary); }
-        td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.95rem; }
-        tr:hover { background: rgba(255,255,255,0.02); }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; }
+        .day-name { font-size: 0.8rem; color: #64748b; padding-bottom: 10px; }
+        .day { aspect-ratio: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; border-radius: 8px; transition: 0.2s; position: relative; font-size: 0.9rem; }
+        .day:hover { background: rgba(255,255,255,0.1); }
+        .day.today { border: 1px solid var(--primary); }
+        .day.selected { background: var(--primary) !important; color: #000; }
+        .event-dot { width: 5px; height: 5px; background: var(--danger); border-radius: 50%; position: absolute; bottom: 5px; box-shadow: 0 0 5px var(--danger); }
 
-        .status-badge { background: var(--success); color: #000; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
-        .log-text { color: #cbd5e1; font-style: italic; }
-        .empty-state { text-align: center; padding: 50px; color: #64748b; }
-
-        @media (max-width: 600px) {
-            table, thead, tbody, th, td, tr { display: block; }
-            thead tr { position: absolute; top: -9999px; left: -9999px; }
-            tr { border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px; border-radius: 10px; padding: 10px; }
-            td { border: none; position: relative; padding-left: 50%; text-align: right; }
-            td:before { position: absolute; left: 10px; width: 45%; padding-right: 10px; white-space: nowrap; content: attr(data-label); text-align: left; color: var(--primary); font-weight: 600; }
-        }
+        /* ตารางข้อมูล */
+        .history-list-card { background: var(--card); border-radius: 15px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px; color: var(--primary); border-bottom: 2px solid var(--primary); font-size: 0.9rem; }
+        td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; }
+        .status-badge { background: var(--success); color: #000; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <a href="index.html" class="btn-back"><i class="fas fa-arrow-left"></i> กลับหน้าควบคุม</a>
-        <h1><i class="fas fa-history"></i> ประวัติเหตุการณ์</h1>
+        <a href="index.html" class="btn-back"><i class="fas fa-arrow-left"></i> กลับ</a>
+        <h2 style="margin:0; font-size: 1.3rem;">ปฏิทินเหตุการณ์</h2>
     </div>
 
-    <div class="history-container">
-        <div class="filter-section">
-            <i class="fas fa-filter"></i>
-            <span>แสดงข้อมูลของปี:</span>
-            <select id="yearFilter"></select>
+    <div class="calendar-card">
+        <div class="calendar-header">
+            <div class="nav-btn" onclick="changeMonth(-1)"><i class="fas fa-angle-double-left"></i></div>
+            <div class="month-title" id="monthDisplay">มกราคม 2567</div>
+            <div class="nav-btn" onclick="changeMonth(1)"><i class="fas fa-angle-double-right"></i></div>
         </div>
-
-        <div id="tableContent">
-            <table>
-                <thead>
-                    <tr>
-                        <th>วัน-เวลา</th>
-                        <th>บ้านที่เกิดเหตุ</th>
-                        <th>ระยะเวลาเกิดเหตุ</th>
-                        <th>สาเหตุ/บันทึก</th>
-                        <th>สถานะ</th>
-                    </tr>
-                </thead>
-                <tbody id="historyBody">
-                    </tbody>
-            </table>
-            <div id="noData" class="empty-state" style="display:none;">
-                <i class="fas fa-folder-open" style="font-size: 3rem; margin-bottom: 10px;"></i>
-                <p>ไม่พบข้อมูลประวัติในขณะนี้</p>
+        <div class="calendar-grid" id="calendarGrid">
             </div>
-        </div>
+    </div>
+
+    <div class="history-list-card">
+        <h3 id="tableTitle" style="margin-top:0; font-size: 1rem; color: var(--primary);">รายการทั้งหมดของเดือน</h3>
+        <table id="historyTable">
+            <thead>
+                <tr>
+                    <th>วัน-เวลา</th>
+                    <th>บ้าน</th>
+                    <th>สาเหตุ</th>
+                </tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+        </table>
     </div>
 
 <script type="module">
@@ -87,74 +82,109 @@
 
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
+    
+    let currentViewDate = new Date();
+    let allHistory = [];
+    let selectedDateStr = null; // วันที่เลือกกรอง (ถ้ามี)
 
-    const historyBody = document.getElementById('historyBody');
-    const noData = document.getElementById('noData');
-    const yearFilter = document.getElementById('yearFilter');
+    const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 
-    // ตั้งค่าฟิลเตอร์ปีปัจจุบัน
-    const currentYear = new Date().getFullYear();
-    for(let y = currentYear; y >= currentYear - 5; y--) {
-        let opt = document.createElement('option');
-        opt.value = y; opt.text = y + 543; // แสดงเป็น พ.ศ.
-        yearFilter.add(opt);
-    }
-
+    // 1. ฟังข้อมูลจาก Firebase
     onValue(ref(database, 'History'), (snap) => {
         const data = snap.val();
-        if (!data) {
-            noData.style.display = 'block';
-            historyBody.innerHTML = '';
-            return;
-        }
-
-        noData.style.display = 'none';
-        const sortedHistory = Object.values(data).sort((a, b) => b.timestamp - a.timestamp);
-        renderTable(sortedHistory);
+        allHistory = data ? Object.values(data).sort((a, b) => b.timestamp - a.timestamp) : [];
+        renderCalendar();
+        renderTable();
     });
 
-    function renderTable(data) {
-        historyBody.innerHTML = '';
-        const selectedYear = parseInt(yearFilter.value);
+    // 2. ฟังก์ชันวาดปฏิทิน
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        const display = document.getElementById('monthDisplay');
+        grid.innerHTML = "";
 
-        data.forEach(item => {
-            const start = new Date(item.startTime);
-            const end = new Date(item.endTime);
+        const year = currentViewDate.getFullYear();
+        const month = currentViewDate.getMonth();
+        display.innerText = `${monthNames[month]} ${year + 543}`;
+
+        // ใส่ชื่อวัน
+        const days = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+        days.forEach(d => grid.innerHTML += `<div class="day-name">${d}</div>`);
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        // ช่องว่างก่อนวันแรกของเดือน
+        for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div></div>`;
+
+        // วาดวันในเดือน
+        for (let d = 1; d <= daysInMonth; d++) {
+            const fullDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const hasEvent = allHistory.some(h => h.startTime.startsWith(fullDateStr));
             
-            // กรองตามปี
-            if (start.getFullYear() !== selectedYear) return;
-
-            const timeStr = start.toLocaleString('th-TH', { 
-                day: '2-digit', month: 'short', year: '2-digit', 
-                hour: '2-digit', minute: '2-digit' 
-            });
-
-            // คำนวณระยะเวลา (นาที)
-            const diffMs = Math.abs(end - start);
-            const diffMins = Math.floor(diffMs / (1000 * 60));
-            const durationStr = diffMins > 0 ? `${diffMins} นาที` : `น้อยกว่า 1 นาที`;
-
-            const row = `
-                <tr>
-                    <td data-label="วัน-เวลา">${timeStr} น.</td>
-                    <td data-label="บ้านที่เกิดเหตุ"><strong>${item.houseName}</strong></td>
-                    <td data-label="ระยะเวลาเกิดเหตุ">${durationStr}</td>
-                    <td data-label="สาเหตุ/บันทึก" class="log-text">${item.log || '-'}</td>
-                    <td data-label="สถานะ"><span class="status-badge">แก้ไขแล้ว</span></td>
-                </tr>
-            `;
-            historyBody.insertAdjacentHTML('beforeend', row);
-        });
-
-        if (historyBody.innerHTML === '') {
-            noData.style.display = 'block';
+            const dayEl = document.createElement('div');
+            dayEl.className = 'day' + (selectedDateStr === fullDateStr ? ' selected' : '');
+            dayEl.innerText = d;
+            if (hasEvent) dayEl.innerHTML += `<div class="event-dot"></div>`;
+            
+            dayEl.onclick = () => filterByDate(fullDateStr);
+            grid.appendChild(dayEl);
         }
     }
 
-    yearFilter.onchange = () => {
-        // โหลดข้อมูลใหม่เมื่อเปลี่ยนปี (ในที่นี้ใช้ข้อมูลเดิมที่โหลดมาแล้ว)
-        location.reload(); 
+    // 3. ฟังก์ชันวาดตาราง
+    function renderTable() {
+        const body = document.getElementById('historyBody');
+        const title = document.getElementById('tableTitle');
+        body.innerHTML = "";
+
+        const year = currentViewDate.getFullYear();
+        const month = currentViewDate.getMonth();
+        
+        const filtered = allHistory.filter(item => {
+            const itemDate = new Date(item.startTime);
+            const isMatchMonth = itemDate.getFullYear() === year && itemDate.getMonth() === month;
+            if (selectedDateStr) {
+                return item.startTime.startsWith(selectedDateStr);
+            }
+            return isMatchMonth;
+        });
+
+        title.innerText = selectedDateStr ? `เหตุการณ์วันที่ ${selectedDateStr}` : `รายการทั้งหมดของเดือน ${monthNames[month]}`;
+
+        filtered.forEach(item => {
+            const start = new Date(item.startTime);
+            const timeStr = start.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            const dateStr = start.getDate() + ' ' + monthNames[start.getMonth()];
+            
+            const row = `<tr>
+                <td>${dateStr} | ${timeStr}</td>
+                <td><strong>${item.houseName}</strong></td>
+                <td class="log-text">${item.log}</td>
+            </tr>`;
+            body.insertAdjacentHTML('beforeend', row);
+        });
+
+        if (filtered.length === 0) body.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:30px;">ไม่มีข้อมูล</td></tr>`;
+    }
+
+    // 4. ฟังก์ชันควบคุม
+    window.changeMonth = (val) => {
+        selectedDateStr = null; // ล้างค่าค้นหาเมื่อเปลี่ยนเดือน
+        currentViewDate.setMonth(currentViewDate.getMonth() + val);
+        renderCalendar();
+        renderTable();
     };
+
+    function filterByDate(dateStr) {
+        if (selectedDateStr === dateStr) {
+            selectedDateStr = null; // กดซ้ำเพื่อยกเลิกการเลือก
+        } else {
+            selectedDateStr = dateStr;
+        }
+        renderCalendar();
+        renderTable();
+    }
 </script>
 </body>
 </html>

@@ -27,7 +27,7 @@
         .house-card.checking { border-color: var(--warning); background: rgba(241, 196, 15, 0.15); }
         
         .house-main { display: flex; align-items: center; gap: 15px; }
-        .house-icon { font-size: 2.2rem; color: var(--primary); }
+        .house-icon { font-size: 2.2rem; color: var(--primary); display: block !important; }
         .alarm .house-icon { color: var(--danger); animation: shake 0.5s infinite; }
         .checking .house-icon { color: var(--warning); }
 
@@ -38,6 +38,8 @@
         .snooze-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 12px; }
         .btn-snz { padding: 8px 0; border: none; border-radius: 5px; background: var(--warning); color: #000; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
         
+        .timer-display { font-size: 0.9rem; color: var(--warning); font-weight: 600; margin-bottom: 10px; display: block; }
+
         .btn-action { width: 100%; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; font-family: 'Prompt'; }
         .btn-solve { background: var(--success); }
         .btn-confirm { background: var(--primary); margin-top: 8px; }
@@ -80,6 +82,7 @@
     const database = getDatabase(app);
     let settings = {};
     let localStatus = {}; 
+    let countdowns = {}; // เก็บตัวแปร Interval สำหรับนับถอยหลัง
 
     function updateTheme(mode) {
         const hour = new Date().getHours();
@@ -108,6 +111,7 @@
                     <div class="controls-panel">
                         <div id="panel-step-1-${id}">
                             <div class="snooze-title"><i class="fas fa-user-check"></i> ปิดเสียงเตือนชั่วคราว เพื่อเข้าตรวจสอบ</div>
+                            <span id="timer-${id}" class="timer-display"></span>
                             <div class="snooze-grid">${(settings.SnoozeTimes || [5,15,30,60]).map(t => `<button class="btn-snz" onclick="startChecking('${id}', ${t})">${t} ม.</button>`).join('')}</div>
                             <button class="btn-action btn-solve" onclick="tryResolve('${id}')">แก้ไขเรียบร้อยแล้ว</button>
                         </div>
@@ -155,10 +159,29 @@
         });
     }
 
-    window.startChecking = (id, time) => {
+    window.startChecking = (id, minutes) => {
         localStatus[id] = 'checking';
         document.getElementById('siren').pause();
-        alert(`รับทราบ! กำลังเข้าตรวจสอบบ้าน ${id} ระบบจะพักเสียงเตือน ${time} นาที`);
+        
+        // ล้าง Timer เดิมถ้ามี
+        if(countdowns[id]) clearInterval(countdowns[id]);
+
+        let timeLeft = minutes * 60;
+        const timerEl = document.getElementById(`timer-${id}`);
+        
+        countdowns[id] = setInterval(() => {
+            let m = Math.floor(timeLeft / 60);
+            let s = timeLeft % 60;
+            timerEl.innerText = `⏳ เหลือเวลาตรวจสอบ: ${m}:${s < 10 ? '0' : ''}${s}`;
+            
+            if (timeLeft <= 0) {
+                clearInterval(countdowns[id]);
+                delete localStatus[id];
+                timerEl.innerText = "";
+                alert(`หมดเวลาตรวจสอบบ้าน ${id} ระบบจะกลับเข้าสู่โหมดแจ้งเตือน`);
+            }
+            timeLeft--;
+        }, 1000);
     };
 
     window.tryResolve = (id) => {
@@ -180,7 +203,14 @@
         }
         
         alert("✅ บันทึกสำเร็จ: " + logText);
-        delete localStatus[id]; 
+        
+        // ล้างสถานะและ Timer
+        delete localStatus[id];
+        if(countdowns[id]) {
+            clearInterval(countdowns[id]);
+            document.getElementById(`timer-${id}`).innerText = "";
+        }
+
         document.getElementById('panel-step-2-'+id).style.display = 'none';
         document.getElementById('panel-step-1-'+id).style.display = 'block';
         document.getElementById('log-'+id).value = "";

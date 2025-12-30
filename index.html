@@ -3,195 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Village Security - Real-time Dashboard</title>
+    <title>Security Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <style>
-        :root {
-            --primary-color: #00d4ff;
-            --danger-color: #ff4d4d;
-            --card-bg: rgba(30, 41, 59, 0.7);
-        }
-        body {
-            font-family: 'Prompt', sans-serif;
-            background: radial-gradient(circle at top right, #1e293b, #0f172a);
-            color: #f8fafc; margin: 0; padding: 20px; min-height: 100vh;
-        }
-        .header { text-align: center; padding: 20px; }
-        .header h1 { 
-            margin: 0; background: linear-gradient(to right, #00d4ff, #00ffaa);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            font-size: clamp(1.5rem, 5vw, 2.5rem);
-        }
+        :root { --danger: #ff4d4d; --primary: #00d4ff; --card: rgba(30, 41, 59, 0.7); }
+        body { font-family: 'Prompt', sans-serif; background: #0f172a; color: white; margin: 0; padding: 15px; }
+        
+        /* แถบสถิติ */
+        .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+        .stat-card { background: var(--card); padding: 15px; border-radius: 15px; text-align: center; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); transition: 0.3s; }
+        .stat-card:hover { transform: translateY(-3px); border-color: var(--primary); }
+        .stat-val { font-size: 1.5rem; font-weight: 600; color: var(--primary); }
+        
+        /* แถบแจ้งเตือนด่วน */
+        #quickAlert { display: none; background: var(--danger); color: white; padding: 10px; border-radius: 10px; margin-bottom: 20px; font-weight: 600; text-align: center; animation: blink 1s infinite; cursor: pointer; }
+        
+        .village-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
+        .house-card { background: var(--card); border-radius: 15px; padding: 15px; text-align: center; border: 2px solid transparent; transition: 0.5s; }
+        .house-card.alarm { border-color: var(--danger); background: rgba(255, 77, 77, 0.2); }
+        .house-icon { font-size: 2rem; color: var(--primary); }
+        .alarm .house-icon { color: var(--danger); animation: shake 0.5s infinite; }
 
-        /* ตารางวางบ้าน */
-        .village-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); 
-            gap: 20px; width: 100%; max-width: 1400px; margin: 20px auto;
-        }
+        #alertModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 99; padding: 20px; }
+        .modal-content { background: #1e293b; max-width: 400px; margin: 50px auto; padding: 30px; border-radius: 20px; text-align: center; border: 2px solid var(--danger); }
+        .btn-snooze { background: #f1c40f; padding: 10px; border: none; border-radius: 5px; margin: 5px; width: 45%; font-family: 'Prompt'; cursor: pointer; }
 
-        .house-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px; padding: 20px;
-            text-align: center; transition: 0.3s;
-        }
-
-        .house-card.alarm {
-            border-color: var(--danger-color);
-            background: rgba(255, 77, 77, 0.2);
-            animation: pulse 1.5s infinite;
-        }
-
-        .house-icon { font-size: 2.5rem; color: var(--primary-color); margin-bottom: 10px; }
-        .house-card.alarm .house-icon { color: var(--danger-color); animation: shake 0.5s infinite; }
-
-        /* Modal แจ้งเตือน */
-        #alertModal {
-            display: none; position: fixed; z-index: 1000;
-            left: 0; top: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
-        }
-        .modal-content {
-            background: #1e293b; margin: 10% auto; padding: 30px;
-            width: 90%; max-width: 500px; border-radius: 20px; text-align: center;
-            border: 2px solid var(--danger-color);
-        }
-        .snooze-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
-        .btn { 
-            padding: 15px; border: none; border-radius: 10px; cursor: pointer; 
-            font-family: 'Prompt'; font-weight: 600; font-size: 1rem;
-        }
-        .btn-snooze { background: #f1c40f; color: #000; }
-        .btn-solve { background: #2ecc71; color: #fff; grid-column: span 2; margin-top: 10px; }
-
-        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+        @keyframes blink { 50% { opacity: 0.7; } }
         @keyframes shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(5deg); } 75% { transform: rotate(-5deg); } }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1>SMART VILLAGE MONITOR</h1>
-        <p id="system-status">ระบบกำลังตรวจสอบความปลอดภัย...</p>
+    <div class="stats-bar">
+        <div class="stat-card">
+            <small>ปลอดภัยมาแล้ว</small>
+            <div class="stat-val" id="safeDays">0 วัน</div>
+        </div>
+        <div class="stat-card" onclick="location.href='history.html?view=month'">
+            <small>เดือนนี้มีเหตุ</small>
+            <div class="stat-val" id="monthEvents">0 ครั้ง</div>
+        </div>
+        <div class="stat-card" onclick="location.href='history.html?view=year'">
+            <small>ปีนี้มีเหตุ</small>
+            <div class="stat-val" id="yearEvents">0 ครั้ง</div>
+        </div>
     </div>
+
+    <div id="quickAlert" onclick="scrollToAlarm()">🚨 แจ้งเตือนด่วน: <span id="alertList"></span></div>
 
     <div class="village-grid" id="villageGrid"></div>
 
     <div id="alertModal">
         <div class="modal-content">
-            <h2 style="color: var(--danger-color); margin: 0;"><i class="fas fa-exclamation-triangle"></i> พบการบุกรุก!</h2>
-            <p id="modal-house-name" style="font-size: 1.5rem; margin: 15px 0;"></p>
-            <p>เลือกการจัดการ:</p>
-            <div class="snooze-buttons" id="snoozeContainer">
-                </div>
-            <button class="btn btn-solve" onclick="closeModal()">ตรวจสอบและแก้ไขแล้ว</button>
+            <h2 style="color:var(--danger)">พบการบุกรุก!</h2>
+            <h3 id="modalName">บ้านหลังที่ X</h3>
+            <div id="snoozeBtns"></div>
+            <button onclick="closeModal()" style="width:100%; padding:10px; margin-top:10px; background:#2ecc71; border:none; color:white; border-radius:5px;">แก้ไขเรียบร้อยแล้ว</button>
         </div>
     </div>
 
-    <audio id="sirenAudio" loop>
-        <source src="https://www.soundjay.com/buttons/beep-01a.mp3" type="audio/mpeg">
-    </audio>
+    <audio id="siren" loop src="https://www.soundjay.com/buttons/beep-01a.mp3"></audio>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBGVarHKqwjhNR_BGANj8CnSWahIHtJNiM",
-            authDomain: "village-security-adf63.firebaseapp.com",
-            databaseURL: "https://village-security-adf63-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "village-security-adf63",
-            storageBucket: "village-security-adf63.firebasestorage.app",
-            appId: "1:943368318320:web:7bfb07a8c1db15952233b5"
-        };
+    const firebaseConfig = {
+        apiKey: "AIzaSyBGVarHKqwjhNR_BGANj8CnSWahIHtJNiM",
+        authDomain: "village-security-adf63.firebaseapp.com",
+        databaseURL: "https://village-security-adf63-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "village-security-adf63",
+        storageBucket: "village-security-adf63.firebasestorage.app",
+        appId: "1:943368318320:web:7bfb07a8c1db15952233b5"
+    };
 
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
-        const siren = document.getElementById('sirenAudio');
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+    let houseNames = {};
+    let activeAlarms = [];
 
-        // 1. โหลดการตั้งค่าจาก Firebase (จำนวนบ้าน & เวลา Snooze)
-        onValue(ref(database, 'Settings'), (snapshot) => {
-            const settings = snapshot.val();
-            if (settings) {
-                renderVillage(settings.TotalHouses || 8);
-                renderSnoozeButtons(settings.SnoozeTimes || [3, 15, 30, 60]);
-            }
+    // โหลดการตั้งค่า
+    onValue(ref(database, 'Settings'), (snap) => {
+        const d = snap.val();
+        if(!d) return;
+        houseNames = d.HouseNames || {};
+        renderVillage(d.TotalHouses || 8);
+        renderSnooze(d.SnoozeTimes || [3,15,30,60]);
+    });
+
+    function renderVillage(total) {
+        const grid = document.getElementById('villageGrid');
+        grid.innerHTML = "";
+        for(let i=1; i<=total; i++){
+            grid.innerHTML += `<div class="house-card" id="card-House${i}"><i class="fas fa-house-shield house-icon"></i><div>${houseNames['House'+i] || 'หลังที่ '+i}</div></div>`;
+        }
+        listenHouses(total);
+    }
+
+    function renderSnooze(times) {
+        const cont = document.getElementById('snoozeBtns');
+        cont.innerHTML = "";
+        times.forEach(t => {
+            cont.innerHTML += `<button class="btn-snooze" onclick="alert('พัก ${t} นาที')">พัก ${t} ม.</button>`;
         });
+    }
 
-        // 2. ฟังก์ชันวาดรูปบ้าน
-        function renderVillage(total) {
-            const grid = document.getElementById('villageGrid');
-            grid.innerHTML = "";
-            for (let i = 1; i <= total; i++) {
-                const card = document.createElement('div');
-                card.className = 'house-card';
-                card.id = `house-${i}`;
-                card.innerHTML = `
-                    <i class="fas fa-house-shield house-icon"></i>
-                    <div style="font-weight:600">หลังที่ ${i}</div>
-                    <small id="status-text-${i}" style="opacity:0.6">ปกติ</small>
-                `;
-                grid.appendChild(card);
-            }
-            listenToHouses(total);
-        }
-
-        // 3. ฟังก์ชันสร้างปุ่ม Snooze
-        function renderSnoozeButtons(times) {
-            const container = document.getElementById('snoozeContainer');
-            container.innerHTML = "";
-            times.forEach(time => {
-                const btn = document.createElement('button');
-                btn.className = 'btn btn-snooze';
-                btn.innerText = `พัก ${time} นาที`;
-                btn.onclick = () => alert(`พักการเตือน ${time} นาที (Feature นี้จะทำต่อในระบบ History)`);
-                container.appendChild(btn);
-            });
-        }
-
-        // 4. ดักฟังสถานะบ้านทุกหลัง
-        function listenToHouses(total) {
-            onValue(ref(database, 'Houses'), (snapshot) => {
-                const houses = snapshot.val() || {};
-                let anyAlarm = false;
-
-                for (let i = 1; i <= total; i++) {
-                    const status = houses[`House${i}`];
-                    const card = document.getElementById(`house-${i}`);
-                    const text = document.getElementById(`status-text-${i}`);
-
-                    if (status == 1) {
-                        card.classList.add('alarm');
-                        text.innerText = "บุกรุก!";
-                        anyAlarm = true;
-                        showModal(i);
-                    } else {
-                        card.classList.remove('alarm');
-                        text.innerText = "ปกติ";
-                    }
-                }
-
-                if (anyAlarm) {
-                    siren.play().catch(e => console.log("รอการอนุญาตเล่นเสียง"));
+    function listenHouses(total) {
+        onValue(ref(database, 'Houses'), (snap) => {
+            const data = snap.val() || {};
+            activeAlarms = [];
+            for(let i=1; i<=total; i++){
+                const id = 'House'+i;
+                const card = document.getElementById('card-'+id);
+                if(data[id] == 1) {
+                    card.classList.add('alarm');
+                    activeAlarms.push(houseNames[id] || 'หลังที่ '+i);
                 } else {
-                    siren.pause();
-                    siren.currentTime = 0;
+                    card.classList.remove('alarm');
                 }
-            });
-        }
+            }
+            updateAlertUI();
+        });
+    }
 
-        function showModal(houseNum) {
+    function updateAlertUI() {
+        const bar = document.getElementById('quickAlert');
+        const siren = document.getElementById('siren');
+        if(activeAlarms.length > 0) {
+            bar.style.display = 'block';
+            document.getElementById('alertList').innerText = activeAlarms.join(', ');
             document.getElementById('alertModal').style.display = 'block';
-            document.getElementById('modal-house-name').innerText = `บ้านหลังที่ ${houseNum}`;
-        }
-
-        window.closeModal = function() {
+            document.getElementById('modalName').innerText = activeAlarms[0];
+            siren.play().catch(() => {});
+        } else {
+            bar.style.display = 'none';
             document.getElementById('alertModal').style.display = 'none';
+            siren.pause();
         }
-    </script>
+    }
+
+    window.scrollToAlarm = () => {
+        const firstAlarm = document.querySelector('.alarm');
+        if(firstAlarm) firstAlarm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    window.closeModal = () => document.getElementById('alertModal').style.display = 'none';
+    document.body.onclick = () => {}; // เพื่อให้เล่นเสียงได้
+</script>
 </body>
 </html>

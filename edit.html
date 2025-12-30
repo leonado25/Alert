@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Village Configuration</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-color: #00d4ff;
+            --save-color: #2ecc71;
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.9);
+        }
+
+        body {
+            font-family: 'Prompt', sans-serif;
+            background: #1e293b;
+            color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+
+        .section-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-left: 5px solid transparent;
+            transition: 0.3s;
+        }
+
+        .section-card.changed {
+            border-left-color: #f1c40f;
+            box-shadow: 0 0 10px rgba(241, 196, 15, 0.2);
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            opacity: 0.8;
+        }
+
+        input[type="number"], input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: white;
+            box-sizing: border-box;
+        }
+
+        .snooze-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .btn-save {
+            background: var(--save-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Prompt';
+            font-weight: 600;
+            transition: 0.3s;
+            float: right;
+        }
+
+        .btn-save:hover { background: #27ae60; transform: translateY(-2px); }
+
+        .warning-text {
+            color: #f1c40f;
+            font-size: 0.8rem;
+            display: none;
+            margin-top: 5px;
+        }
+
+        .section-card.changed .warning-text { display: block; }
+
+        .clear { clear: both; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1><i class="fas fa-user-shield"></i> ระบบหลังบ้าน (Settings)</h1>
+    </div>
+
+    <div class="section-card" id="card-total">
+        <div class="section-title"><i class="fas fa-home"></i> จำนวนบ้านทั้งหมด</div>
+        <div class="input-group">
+            <label>ระบุจำนวนบ้านที่ต้องการแสดงผล</label>
+            <input type="number" id="totalHouses" value="8" oninput="markChanged('card-total')">
+        </div>
+        <div class="warning-text">⚠️ มีการเปลี่ยนแปลงข้อมูล กรุณากดบันทึก</div>
+        <button class="btn-save" onclick="saveTotalHouses()">บันทึกจำนวนบ้าน</button>
+        <div class="clear"></div>
+    </div>
+
+    <div class="section-card" id="card-snooze">
+        <div class="section-title"><i class="fas fa-clock"></i> ตั้งค่าเวลา Snooze (นาที)</div>
+        <div class="snooze-grid">
+            <div class="input-group">
+                <label>ช่องที่ 1</label>
+                <input type="number" id="snz1" value="3" oninput="markChanged('card-snooze')">
+            </div>
+            <div class="input-group">
+                <label>ช่องที่ 2</label>
+                <input type="number" id="snz2" value="15" oninput="markChanged('card-snooze')">
+            </div>
+            <div class="input-group">
+                <label>ช่องที่ 3</label>
+                <input type="number" id="snz3" value="30" oninput="markChanged('card-snooze')">
+            </div>
+            <div class="input-group">
+                <label>ช่องที่ 4</label>
+                <input type="number" id="snz4" value="60" oninput="markChanged('card-snooze')">
+            </div>
+        </div>
+        <div class="warning-text">⚠️ มีการเปลี่ยนแปลงข้อมูล กรุณากดบันทึก</div>
+        <button class="btn-save" onclick="saveSnooze()">บันทึกเวลา Snooze</button>
+        <div class="clear"></div>
+    </div>
+
+    <div class="section-card" id="card-security">
+        <div class="section-title"><i class="fas fa-lock"></i> ความปลอดภัยระบบ</div>
+        <div class="input-group">
+            <label>รหัสผ่านเข้าหน้า Admin ใหม่</label>
+            <input type="password" id="adminPass" placeholder="ระบุรหัสผ่านใหม่" oninput="markChanged('card-security')">
+        </div>
+        <div class="warning-text">⚠️ มีการเปลี่ยนแปลงข้อมูล กรุณากดบันทึก</div>
+        <button class="btn-save" onclick="saveSecurity()">บันทึกรหัสผ่าน</button>
+        <div class="clear"></div>
+    </div>
+</div>
+
+<script type="module">
+    // --- การเชื่อมต่อ Firebase ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBGVarHKqwjhNR_BGANj8CnSWahIHtJNiM",
+        authDomain: "village-security-adf63.firebaseapp.com",
+        databaseURL: "https://village-security-adf63-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "village-security-adf63",
+        storageBucket: "village-security-adf63.firebasestorage.app",
+        appId: "1:943368318320:web:7bfb07a8c1db15952233b5"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+
+    // --- ฟังก์ชันตรวจจับการเปลี่ยนแปลง ---
+    window.markChanged = function(cardId) {
+        document.getElementById(cardId).classList.add('changed');
+        window.hasUnsavedChanges = true;
+    };
+
+    // เตือนก่อนออกจากหน้าเว็บถ้ายังไม่เซฟ
+    window.onbeforeunload = function() {
+        if (window.hasUnsavedChanges) {
+            return "คุณยังไม่ได้บันทึกข้อมูล ต้องการออกจากหน้านี้ใช่หรือไม่?";
+        }
+    };
+
+    // --- ฟังก์ชันบันทึกข้อมูล ---
+    window.saveTotalHouses = function() {
+        const val = document.getElementById('totalHouses').value;
+        set(ref(database, 'Settings/TotalHouses'), parseInt(val))
+        .then(() => {
+            alert('บันทึกจำนวนบ้านเรียบร้อยแล้ว');
+            document.getElementById('card-total').classList.remove('changed');
+            checkRemainingChanges();
+        });
+    };
+
+    window.saveSnooze = function() {
+        const times = [
+            parseInt(document.getElementById('snz1').value),
+            parseInt(document.getElementById('snz2').value),
+            parseInt(document.getElementById('snz3').value),
+            parseInt(document.getElementById('snz4').value)
+        ];
+        set(ref(database, 'Settings/SnoozeTimes'), times)
+        .then(() => {
+            alert('บันทึกเวลา Snooze เรียบร้อยแล้ว');
+            document.getElementById('card-snooze').classList.remove('changed');
+            checkRemainingChanges();
+        });
+    };
+
+    window.saveSecurity = function() {
+        const pass = document.getElementById('adminPass').value;
+        if(!pass) return alert('กรุณาระบุรหัสผ่าน');
+        set(ref(database, 'Settings/AdminPass'), pass)
+        .then(() => {
+            alert('บันทึกรหัสผ่านใหม่เรียบร้อยแล้ว');
+            document.getElementById('card-security').classList.remove('changed');
+            checkRemainingChanges();
+        });
+    };
+
+    function checkRemainingChanges() {
+        const changedCards = document.querySelectorAll('.changed');
+        if (changedCards.length === 0) {
+            window.hasUnsavedChanges = false;
+        }
+    }
+
+    // --- โหลดข้อมูลเก่ามาแสดงผล ---
+    onValue(ref(database, 'Settings'), (snapshot) => {
+        const data = snapshot.val();
+        if(data) {
+            if(data.TotalHouses) document.getElementById('totalHouses').value = data.TotalHouses;
+            if(data.SnoozeTimes) {
+                document.getElementById('snz1').value = data.SnoozeTimes[0];
+                document.getElementById('snz2').value = data.SnoozeTimes[1];
+                document.getElementById('snz3').value = data.SnoozeTimes[2];
+                document.getElementById('snz4').value = data.SnoozeTimes[3];
+            }
+        }
+    });
+</script>
+
+</body>
+</html>

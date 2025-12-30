@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security History - ประวัติเหตุการณ์</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --primary: #00d4ff; --bg: #0f172a; --card: rgba(30, 41, 59, 0.7); --text: #fff; --success: #2ecc71; }
+        body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; }
+        .btn-back { color: var(--text); text-decoration: none; background: var(--card); padding: 10px 20px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); transition: 0.3s; }
+        .btn-back:hover { background: var(--primary); color: #000; }
+        
+        .history-container { background: var(--card); border-radius: 20px; padding: 20px; border: 1px solid rgba(255,255,255,0.1); }
+        h2 { color: var(--primary); margin-top: 0; }
+
+        .filter-section { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+        select { background: #1e293b; color: white; border: 1px solid var(--primary); padding: 8px; border-radius: 5px; font-family: 'Prompt'; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; padding: 15px; background: rgba(0, 212, 255, 0.1); color: var(--primary); border-bottom: 2px solid var(--primary); }
+        td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.95rem; }
+        tr:hover { background: rgba(255,255,255,0.02); }
+
+        .status-badge { background: var(--success); color: #000; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
+        .log-text { color: #cbd5e1; font-style: italic; }
+        .empty-state { text-align: center; padding: 50px; color: #64748b; }
+
+        @media (max-width: 600px) {
+            table, thead, tbody, th, td, tr { display: block; }
+            thead tr { position: absolute; top: -9999px; left: -9999px; }
+            tr { border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px; border-radius: 10px; padding: 10px; }
+            td { border: none; position: relative; padding-left: 50%; text-align: right; }
+            td:before { position: absolute; left: 10px; width: 45%; padding-right: 10px; white-space: nowrap; content: attr(data-label); text-align: left; color: var(--primary); font-weight: 600; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <a href="index.html" class="btn-back"><i class="fas fa-arrow-left"></i> กลับหน้าควบคุม</a>
+        <h1><i class="fas fa-history"></i> ประวัติเหตุการณ์</h1>
+    </div>
+
+    <div class="history-container">
+        <div class="filter-section">
+            <i class="fas fa-filter"></i>
+            <span>แสดงข้อมูลของปี:</span>
+            <select id="yearFilter"></select>
+        </div>
+
+        <div id="tableContent">
+            <table>
+                <thead>
+                    <tr>
+                        <th>วัน-เวลา</th>
+                        <th>บ้านที่เกิดเหตุ</th>
+                        <th>ระยะเวลาเกิดเหตุ</th>
+                        <th>สาเหตุ/บันทึก</th>
+                        <th>สถานะ</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody">
+                    </tbody>
+            </table>
+            <div id="noData" class="empty-state" style="display:none;">
+                <i class="fas fa-folder-open" style="font-size: 3rem; margin-bottom: 10px;"></i>
+                <p>ไม่พบข้อมูลประวัติในขณะนี้</p>
+            </div>
+        </div>
+    </div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBGVarHKqwjhNR_BGANj8CnSWahIHtJNiM",
+        authDomain: "village-security-adf63.firebaseapp.com",
+        databaseURL: "https://village-security-adf63-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "village-security-adf63",
+        storageBucket: "village-security-adf63.firebasestorage.app",
+        appId: "1:943368318320:web:7bfb07a8c1db15952233b5"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+
+    const historyBody = document.getElementById('historyBody');
+    const noData = document.getElementById('noData');
+    const yearFilter = document.getElementById('yearFilter');
+
+    // ตั้งค่าฟิลเตอร์ปีปัจจุบัน
+    const currentYear = new Date().getFullYear();
+    for(let y = currentYear; y >= currentYear - 5; y--) {
+        let opt = document.createElement('option');
+        opt.value = y; opt.text = y + 543; // แสดงเป็น พ.ศ.
+        yearFilter.add(opt);
+    }
+
+    onValue(ref(database, 'History'), (snap) => {
+        const data = snap.val();
+        if (!data) {
+            noData.style.display = 'block';
+            historyBody.innerHTML = '';
+            return;
+        }
+
+        noData.style.display = 'none';
+        const sortedHistory = Object.values(data).sort((a, b) => b.timestamp - a.timestamp);
+        renderTable(sortedHistory);
+    });
+
+    function renderTable(data) {
+        historyBody.innerHTML = '';
+        const selectedYear = parseInt(yearFilter.value);
+
+        data.forEach(item => {
+            const start = new Date(item.startTime);
+            const end = new Date(item.endTime);
+            
+            // กรองตามปี
+            if (start.getFullYear() !== selectedYear) return;
+
+            const timeStr = start.toLocaleString('th-TH', { 
+                day: '2-digit', month: 'short', year: '2-digit', 
+                hour: '2-digit', minute: '2-digit' 
+            });
+
+            // คำนวณระยะเวลา (นาที)
+            const diffMs = Math.abs(end - start);
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            const durationStr = diffMins > 0 ? `${diffMins} นาที` : `น้อยกว่า 1 นาที`;
+
+            const row = `
+                <tr>
+                    <td data-label="วัน-เวลา">${timeStr} น.</td>
+                    <td data-label="บ้านที่เกิดเหตุ"><strong>${item.houseName}</strong></td>
+                    <td data-label="ระยะเวลาเกิดเหตุ">${durationStr}</td>
+                    <td data-label="สาเหตุ/บันทึก" class="log-text">${item.log || '-'}</td>
+                    <td data-label="สถานะ"><span class="status-badge">แก้ไขแล้ว</span></td>
+                </tr>
+            `;
+            historyBody.insertAdjacentHTML('beforeend', row);
+        });
+
+        if (historyBody.innerHTML === '') {
+            noData.style.display = 'block';
+        }
+    }
+
+    yearFilter.onchange = () => {
+        // โหลดข้อมูลใหม่เมื่อเปลี่ยนปี (ในที่นี้ใช้ข้อมูลเดิมที่โหลดมาแล้ว)
+        location.reload(); 
+    };
+</script>
+</body>
+</html>

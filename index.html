@@ -7,22 +7,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* จัดการตัวแปรสีสำหรับ 2 โหมด */
         :root { 
             --danger: #ff4d4d; --primary: #00d4ff; --warning: #f1c40f; --success: #2ecc71; 
             --bg: #0f172a; --card: rgba(30, 41, 59, 0.7); --text: #fff; --border: rgba(255,255,255,0.1);
+            --timer-text: #f1c40f;
         }
 
-        /* คลาสสำหรับ Light Mode */
+        /* ปรับปรุง Light Mode ให้สีเหลืองมองเห็นชัดเจน (ใช้สีดำแทนในจุดสำคัญ) */
         .light-mode { 
             --bg: #f1f5f9; --card: #ffffff; --text: #1e293b; --primary: #0284c7; --border: rgba(0,0,0,0.1);
+            --timer-text: #000000; /* นับถอยหลังเป็นสีดำในโหมดสว่าง */
         }
 
-        body { 
-            font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); 
-            margin: 0; padding: 15px; transition: background 0.5s, color 0.5s; overflow-x: hidden; 
-        }
-        
+        body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; transition: 0.5s; overflow-x: hidden; }
         .header { text-align: center; margin-bottom: 20px; }
         .village-title { font-size: 1.8rem; font-weight: 600; color: var(--primary); margin: 0; }
         
@@ -33,7 +30,7 @@
         #quickAlert { display: none; background: var(--danger); color: white; padding: 12px; border-radius: 10px; margin-bottom: 15px; text-align: center; font-weight: 600; cursor: pointer; position: sticky; top: 10px; z-index: 999; }
         
         .village-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
-        .house-card { background: var(--card); border-radius: 15px; padding: 15px; border: 2px solid transparent; transition: 0.3s; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.1); color: var(--text); }
+        .house-card { background: var(--card); border-radius: 15px; padding: 15px; border: 2px solid transparent; transition: 0.3s; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         
         .house-card.alarm { border-color: var(--danger); background: rgba(255, 77, 77, 0.15); }
         .house-card.checking { border-color: var(--warning); background: rgba(241, 196, 15, 0.15); }
@@ -47,11 +44,14 @@
         .controls-panel { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); }
         .alarm .controls-panel, .checking .controls-panel { display: block; }
         
-        .snooze-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--warning); }
-        .snooze-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 12px; }
+        /* ปรับสีหัวข้อ Snooze */
+        .snooze-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--timer-text); }
         
+        .snooze-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 12px; }
         .btn-snz { padding: 8px 0; border: none; border-radius: 5px; background: var(--warning); color: #000; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
-        .timer-display { font-size: 0.9rem; color: var(--warning); font-weight: 600; margin-bottom: 10px; display: block; background: rgba(0,0,0,0.1); padding: 5px; border-radius: 5px; text-align: center; }
+        
+        /* ปรับสีตัวเลขนับถอยหลัง */
+        .timer-display { font-size: 0.9rem; color: var(--timer-text); font-weight: 800; margin-bottom: 10px; display: block; background: rgba(0,0,0,0.1); padding: 8px; border-radius: 5px; text-align: center; }
         
         .btn-action { width: 100%; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; font-family: 'Prompt'; }
         .btn-solve { background: var(--success); }
@@ -61,16 +61,14 @@
         .input-log { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); margin-bottom: 5px; box-sizing: border-box; font-family: 'Prompt'; }
         
         #startOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; z-index: 10000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        
         @keyframes shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(5deg); } 75% { transform: rotate(-5deg); } }
     </style>
 </head>
 <body>
-
     <div id="startOverlay">
         <i class="fas fa-shield-alt" style="font-size: 5rem; color: var(--primary); margin-bottom: 20px;"></i>
         <h2 style="color:white; margin-bottom:20px;">ระบบเฝ้าระวังความปลอดภัย</h2>
-        <button id="btnStart" style="padding:15px 40px; font-size:1.2rem; background:var(--primary); color:#000; border:none; border-radius:10px; cursor:pointer; font-family:'Prompt'; font-weight:600;">เริ่มการทำงานและเปิดเสียงเตือน</button>
+        <button id="btnStart" style="padding:15px 40px; font-size:1.2rem; background:var(--primary); color:#000; border:none; border-radius:10px; cursor:pointer; font-family:'Prompt'; font-weight:600;">เริ่มทำงาน (เปิดเสียงเตือน)</button>
     </div>
 
     <div class="header">
@@ -81,7 +79,6 @@
             <div class="stat-card"><span>ปีนี้</span><span class="stat-val" id="yearEvents">0 ครั้ง</span></div>
         </div>
     </div>
-
     <div id="quickAlert" onclick="scrollToAlarm()">🚨 แจ้งเตือน: <span id="alertList"></span></div>
     <div class="village-grid" id="villageGrid"></div>
     <audio id="siren" loop preload="auto"><source src="https://www.soundjay.com/buttons/beep-01a.mp3" type="audio/mpeg"></audio>
@@ -106,50 +103,28 @@
     let countdowns = {};
     let audioEnabled = false;
 
-    // --- ฟังก์ชันจัดการธีม ---
-    function applyTheme(themeMode) {
-        const body = document.body;
-        if (themeMode === 'light') {
-            body.classList.add('light-mode');
-        } else if (themeMode === 'dark') {
-            body.classList.remove('light-mode');
-        } else if (themeMode === 'auto') {
+    // ระบบจัดการ Theme
+    function applyTheme(mode) {
+        if (mode === 'light') document.body.classList.add('light-mode');
+        else if (mode === 'dark') document.body.classList.remove('light-mode');
+        else {
             const hour = new Date().getHours();
-            // กลางวัน 06:00 - 18:00
-            if (hour >= 6 && hour < 18) {
-                body.classList.add('light-mode');
-            } else {
-                body.classList.remove('light-mode');
-            }
+            if (hour >= 6 && hour < 18) document.body.classList.add('light-mode');
+            else document.body.classList.remove('light-mode');
         }
     }
 
     document.getElementById('btnStart').addEventListener('click', () => {
         const siren = document.getElementById('siren');
-        siren.play().then(() => { 
-            siren.pause(); 
-            siren.currentTime = 0; 
-            audioEnabled = true; 
-            document.getElementById('startOverlay').style.display = 'none'; 
-        });
+        siren.play().then(() => { siren.pause(); siren.currentTime = 0; audioEnabled = true; document.getElementById('startOverlay').style.display = 'none'; });
     });
 
-    // ดึงค่าการตั้งค่า (รวมถึง Theme)
     onValue(ref(database, 'Settings'), (snap) => {
-        const newSettings = snap.val() || {};
-        
-        // ตรวจสอบว่าจำนวนบ้านเปลี่ยนไหม ถ้าเปลี่ยนให้ Render ใหม่
-        if (settings.TotalHouses !== newSettings.TotalHouses) {
-            settings = newSettings;
-            renderHouses();
-        } else {
-            settings = newSettings;
-        }
-
+        const oldTotal = settings.TotalHouses;
+        settings = snap.val() || {};
         document.getElementById('villageDisplay').innerText = settings.VillageName || "Smart Village";
-        
-        // เรียกใช้ฟังก์ชันธีม
         applyTheme(settings.Theme);
+        if(oldTotal !== settings.TotalHouses) renderHouses();
     });
 
     function renderHouses() {
@@ -178,8 +153,6 @@
                     </div>
                 </div>`;
         }
-        
-        // ผูก Event ปุ่มต่างๆ
         for(let i=1; i<=settings.TotalHouses; i++){
             const id = `House${i}`;
             (settings.SnoozeTimes || [5,15,30,60]).forEach(t => { 
@@ -204,10 +177,8 @@
                 const txt = document.getElementById('txt-' + id);
                 if(!card) continue;
 
-                if(data[id] == 1 && localStatus[id] !== 'checking') {
-                    localStatus[id] = 'alarm';
-                }
-
+                if(data[id] == 1 && localStatus[id] !== 'checking') localStatus[id] = 'alarm';
+                
                 if(localStatus[id] === 'alarm') {
                     card.className = 'house-card alarm';
                     txt.innerText = "แจ้งเตือน";
@@ -224,7 +195,6 @@
             }
             document.getElementById('quickAlert').style.display = alerts.length ? 'block' : 'none';
             document.getElementById('alertList').innerText = alerts.join(', ');
-            
             const siren = document.getElementById('siren');
             if(shouldPlaySiren && audioEnabled) siren.play().catch(()=>{}); 
             else siren.pause();
@@ -247,8 +217,14 @@
             if (timeLeft <= 0) {
                 clearInterval(countdowns[id]);
                 timerEl.style.display = 'none';
+                
+                // ตรวจสอบสัญญาณใหม่เมื่อครบเวลา
                 get(ref(database, 'Houses/'+id)).then((snap) => {
-                    if(snap.val() == 1) delete localStatus[id];
+                    if(snap.val() == 1) {
+                        delete localStatus[id]; // กลับสู่สถานะ Alarm ทันที และเสียงจะดังต่ออัตโนมัติ
+                    } else {
+                        localStatus[id] = 'normal'; // ถ้าสัญญาณหายไปแล้วก็ให้เป็นปกติ
+                    }
                 });
             }
             timeLeft--;
@@ -257,7 +233,7 @@
 
     function tryResolve(id) {
         get(ref(database, 'Houses/'+id)).then((snap) => {
-            if(snap.val() == 1) alert("❌ สัญญาณยังไม่ปกติ! กรุณาตรวจสอบการเชื่อมต่อที่บ้านหลังนี้");
+            if(snap.val() == 1) alert("❌ สัญญาณยังมีการช็อตอยู่! กรุณาแก้ไขให้เรียบร้อยก่อนปิด");
             else { 
                 document.getElementById('panel-step-1-'+id).style.display = 'none'; 
                 document.getElementById('panel-step-2-'+id).style.display = 'block'; 
@@ -268,7 +244,7 @@
     function finalSave(id) {
         const logText = document.getElementById('log-'+id).value;
         if(!logText.trim()) { alert("⚠️ กรุณาระบุสาเหตุ"); return; }
-        alert("✅ บันทึกสำเร็จ");
+        alert("✅ บันทึกสำเร็จ ระบบกลับสู่สภาวะปกติ");
         delete localStatus[id];
         if(countdowns[id]) clearInterval(countdowns[id]);
         document.getElementById(`timer-${id}`).style.display = 'none';

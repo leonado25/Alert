@@ -68,7 +68,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, onValue, set, update, serverTimestamp, push, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, onValue, set, update, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyBGVarHKqwjhNR_BGANj8CnSWahIHtJNiM",
@@ -82,17 +82,15 @@
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
     let settings = {};
-    let localStatus = {}; 
+    let localStatus = {}; // เก็บสถานะหน้าเว็บ ('alarm', 'checking')
     let countdowns = {};
 
-    // 1. จัดการธีม
     function updateTheme(mode) {
         const hour = new Date().getHours();
         const isDark = mode === 'dark' || (mode === 'auto' && (hour < 6 || hour >= 18));
         document.body.className = isDark ? '' : 'light-mode';
     }
 
-    // 2. ดึงค่าการตั้งค่าจาก Firebase
     onValue(ref(database, 'Settings'), (snap) => {
         settings = snap.val() || {};
         document.getElementById('villageDisplay').innerText = settings.VillageName || "Smart Village";
@@ -100,7 +98,6 @@
         renderHouses();
     });
 
-    // 3. วาดรูปบ้านและส่วนควบคุม
     function renderHouses() {
         const grid = document.getElementById('villageGrid'); grid.innerHTML = "";
         for(let i=1; i<=settings.TotalHouses; i++){
@@ -119,7 +116,7 @@
                             <div class="snooze-title"><i class="fas fa-user-check"></i> ปิดเสียงเตือนชั่วคราว เพื่อเข้าตรวจสอบ</div>
                             <span id="timer-${id}" class="timer-display" style="display:none;"></span>
                             <div class="snooze-grid">${(settings.SnoozeTimes || [5,15,30,60]).map(t => `<button class="btn-snz" onclick="startChecking('${id}', ${t})">${t} ม.</button>`).join('')}</div>
-                            <button class="btn-action btn-solve" onclick="tryResolve('${id}')">แก้ไขเรียบร้อยแล้ว</button>
+                            <button class="btn-action btn-solve" onclick="tryResolve('${id}')">ตรวจสอบและแก้ไขแล้ว</button>
                         </div>
                         <div id="panel-step-2-${id}" class="solve-step-2">
                             <input type="text" id="log-${id}" class="input-log" placeholder="พิมพ์สาเหตุปัญหาที่พบ...">
@@ -131,7 +128,6 @@
         listenHouses();
     }
 
-    // 4. ดักฟังสถานะจาก Arduino และลอจิกการแสดงผล
     function listenHouses() {
         onValue(ref(database, 'Houses'), (snap) => {
             const data = snap.val() || {};
@@ -145,20 +141,27 @@
                 const txt = document.getElementById('txt-' + id);
                 if(!card) continue;
 
-                const status = data[id];
+                const firebaseStatus = data[id];
 
-                // ถ้าช็อต (1) หรือกำลังตรวจสอบ (checking)
-                if(status == 1 || localStatus[id] === 'checking') {
-                    if(localStatus[id] === 'checking') {
-                        card.className = 'house-card checking';
-                        txt.innerText = "กำลังเข้าตรวจสอบ...";
-                    } else {
-                        card.className = 'house-card alarm';
-                        txt.innerText = "แจ้งเตือน";
-                        shouldPlaySiren = true;
-                    }
+                // --- LOGIC LATCH ALARM ---
+                // ถ้าใน Firebase เป็น 1 ให้เซ็ต localStatus เป็น 'alarm' ทันที (เว้นแต่กำลัง 'checking' อยู่)
+                if(firebaseStatus == 1 && localStatus[id] !== 'checking') {
+                    localStatus[id] = 'alarm';
+                }
+
+                // การแสดงผลตาม localStatus
+                if(localStatus[id] === 'alarm') {
+                    card.className = 'house-card alarm';
+                    txt.innerText = "แจ้งเตือน (ค้างสถานะ)";
+                    shouldPlaySiren = true;
                     alerts.push((settings.HouseNames && settings.HouseNames[id]) || 'หลังที่ '+i);
-                } else {
+                } 
+                else if(localStatus[id] === 'checking') {
+                    card.className = 'house-card checking';
+                    txt.innerText = "กำลังเข้าตรวจสอบ...";
+                    alerts.push((settings.HouseNames && settings.HouseNames[id]) || 'หลังที่ '+i);
+                } 
+                else {
                     card.className = 'house-card';
                     txt.innerText = "ปกติ";
                 }
@@ -171,9 +174,8 @@
         });
     }
 
-    // 5. ระบบนับถอยหลังเมื่อกดปิดเสียงชั่วคราว
     window.startChecking = (id, minutes) => {
-        localStatus[id] = 'checking';
+        localStatus[id] = 'checking'; // เปลี่ยนจาก alarm เป็น checking
         document.getElementById('siren').pause();
         if(countdowns[id]) clearInterval(countdowns[id]);
 
@@ -190,11 +192,13 @@
                 clearInterval(countdowns[id]);
                 timerEl.style.display = 'none';
                 
-                // ตรวจสอบค่า Arduino ทันทีเมื่อหมดเวลา
+                // เมื่อหมดเวลา เช็ค Arduino
                 onValue(ref(database, 'Houses/'+id), (snap) => {
                     if(snap.val() == 1) {
-                        // ถ้ายังช็อตอยู่ ล้างสถานะ checking เพื่อให้ระบบกลับไปร้องไซเรน (Alarm) ทันที
-                        delete localStatus[id];
+                        localStatus[id] = 'alarm'; // กลับไปร้องเตือนทันที
+                    } else {
+                        // ถ้าสายเลิกช็อตแล้ว แต่ยังไม่บันทึก ให้ค้างสถานะ checking (สีเหลือง) ไว้ก่อน
+                        localStatus[id] = 'checking'; 
                     }
                 }, { onlyOnce: true });
             }
@@ -202,7 +206,6 @@
         }, 1000);
     };
 
-    // 6. ตรวจสอบ Arduino ก่อนขยับไปขั้นตอนบันทึก
     window.tryResolve = (id) => {
         onValue(ref(database, 'Houses/'+id), (snap) => {
             if(snap.val() == 1) {
@@ -214,13 +217,15 @@
         }, { onlyOnce: true });
     };
 
-    // 7. บันทึกสาเหตุและปิดเหตุการณ์สมบูรณ์
     window.finalSave = (id) => {
         const logText = document.getElementById('log-'+id).value;
         if(!logText.trim()) { alert("⚠️ ไม่สามารถเว้นว่างได้! กรุณาพิมพ์สาเหตุของปัญหา"); return; }
         
-        alert("✅ บันทึกสำเร็จ");
-        delete localStatus[id];
+        alert("✅ บันทึกสำเร็จ: " + logText);
+        
+        // ปลดล็อกสถานะให้กลับเป็นปกติสมบูรณ์
+        delete localStatus[id]; 
+        
         if(countdowns[id]) {
             clearInterval(countdowns[id]);
             document.getElementById(`timer-${id}`).style.display = 'none';

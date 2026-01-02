@@ -2,32 +2,21 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบเฝ้าระวังภัย - Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root { --safe: #2ecc71; --danger: #e74c3c; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; }
-        body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; transition: 0.3s; }
-        
+        body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; }
         .header { background: var(--card); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
         .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; padding: 20px; }
-        
         .house-card { background: var(--card); border-radius: 15px; padding: 25px; text-align: center; border-bottom: 6px solid var(--safe); transition: 0.3s; }
-        
-        /* การแจ้งเตือนสีแดงกะพริบ */
-        .house-card.alert-active { border-bottom-color: var(--danger); animation: blink-bg 1s infinite; }
-        
-        @keyframes blink-bg { 
-            0%, 100% { background: var(--card); } 
-            50% { background: #450a0a; } 
-        }
-
+        .house-card.alert-active { border-bottom-color: var(--danger); animation: blink-bg 0.8s infinite; }
+        @keyframes blink-bg { 0%, 100% { background: var(--card); } 50% { background: #450a0a; } }
         .btn { border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 10px; font-family: 'Prompt'; }
         .btn-snooze { background: #64748b; color: white; }
         .btn-close { background: var(--safe); color: white; }
-        
         #clock { font-size: 1.5rem; font-weight: 600; color: #00d4ff; }
-        .alert-label { color: #ff4d4d; font-weight: bold; font-size: 1.1rem; display: block; margin-top: 10px; }
+        .alert-msg { color: #ff4d4d; font-weight: bold; display: block; margin: 10px 0; }
     </style>
 </head>
 <body>
@@ -37,12 +26,9 @@
     <div id="clock">00:00:00</div>
 </div>
 
-<div id="dashboard" class="grid-container">
-    </div>
+<div id="dashboard" class="grid-container"></div>
 
-<audio id="sirenSound" loop>
-    <source src="https://www.soundjay.com/buttons/beep-01a.mp3" type="audio/mpeg">
-</audio>
+<audio id="sirenSound" loop><source src="https://www.soundjay.com/buttons/beep-01a.mp3" type="audio/mpeg"></audio>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -64,94 +50,68 @@
     let isSnoozed = false;
     let snoozeTimer = null;
 
-    // 1. ดึงข้อมูลตั้งค่า (Settings)
-    onValue(ref(db, 'Settings'), (snapshot) => {
-        settings = snapshot.val() || {};
-        document.getElementById('villageTitle').innerText = settings.VillageName || "ระบบรักษาความปลอดภัย";
-        renderDashboard(); 
+    // โหลด Settings
+    onValue(ref(db, 'Settings'), (snap) => {
+        settings = snap.val() || {};
+        document.getElementById('villageTitle').innerText = settings.VillageName || "Village Security";
+        renderDashboard();
     });
 
-    // 2. ดึงสถานะแบบ Real-time (Status)
     function renderDashboard() {
         onValue(ref(db, 'Status'), (snapshot) => {
             const statuses = snapshot.val() || {};
             const container = document.getElementById('dashboard');
             container.innerHTML = '';
-            
-            let hasGlobalAlert = false;
-            const total = settings.TotalHouses || 0;
+            let hasAlert = false;
 
-            for (let i = 1; i <= total; i++) {
-                const houseId = "House" + i;
-                const houseName = (settings.HouseNames && settings.HouseNames[houseId]) || "บ้านหลังที่ " + i;
+            for (let i = 1; i <= (settings.TotalHouses || 0); i++) {
+                // ดึง ID รูปแบบเดียวกับ Arduino (House_001, House_002...)
+                const houseId = "House_" + String(i).padStart(3, '0');
+                const houseName = (settings.HouseNames && settings.HouseNames[houseId]) || "บ้านเลขที่ " + houseId;
                 const state = statuses[houseId] || {};
 
-                // เงื่อนไขแจ้งเตือน: ถ้า panic หรือ check เป็น true (Logic ติดค้าง)
                 const isAlerting = state.panic === true || state.check === true;
-                if (isAlerting) hasGlobalAlert = true;
+                if (isAlerting) hasAlert = true;
 
                 const card = document.createElement('div');
                 card.className = `house-card ${isAlerting ? 'alert-active' : ''}`;
-                
                 card.innerHTML = `
-                    <small style="color:#94a3b8;">${houseId}</small>
                     <h3 style="margin:5px 0;">${houseName}</h3>
                     ${isAlerting ? `
-                        <span class="alert-label">🚨 ${state.message || 'แจ้งเหตุ'}</span>
+                        <span class="alert-msg">🚨 ${state.message || 'ตรวจพบเหตุ'}</span>
                         <button class="btn btn-snooze" onclick="window.triggerSnooze()">ปิดเสียงชั่วคราว</button>
                         <button class="btn btn-close" onclick="window.confirmClear('${houseId}')">บันทึกการตรวจสอบ</button>
-                    ` : '<span style="color:#2ecc71;">✅ สถานะปกติ</span>'}
+                    ` : '<span style="color:#2ecc71;">✅ ปกติ</span>'}
                 `;
                 container.appendChild(card);
             }
-
-            manageSiren(hasGlobalAlert);
+            manageSiren(hasAlert);
         });
     }
 
-    // --- ระบบจัดการเสียง ---
-    function manageSiren(isActive) {
+    function manageSiren(active) {
         const siren = document.getElementById('sirenSound');
-        if (isActive && !isSnoozed) {
-            siren.play().catch(() => { console.log("รอการคลิกจากผู้ใช้เพื่อเริ่มเสียง"); });
-        } else {
-            siren.pause();
-        }
+        if (active && !isSnoozed) siren.play().catch(() => {});
+        else siren.pause();
     }
 
-    // --- ฟังก์ชัน Snooze (วินาที) ---
     window.triggerSnooze = () => {
-        isSnoozed = true;
-        manageSiren(true); 
-        
-        const sec = settings.SnoozeTime || 30; // ดึงค่าจาก Settings/SnoozeTime
-        
+        isSnoozed = true; manageSiren(true);
+        const sec = settings.SnoozeTime || 30;
         clearTimeout(snoozeTimer);
-        snoozeTimer = setTimeout(() => {
-            isSnoozed = false;
-            // เมื่อครบเวลา ระบบจะเช็คสถานะและส่งเสียงใหม่หากยังมีเหตุค้างอยู่
-        }, sec * 1000);
-        
-        alert(`ปิดเสียงไซเรนชั่วคราว ${sec} วินาที`);
+        snoozeTimer = setTimeout(() => { isSnoozed = false; }, sec * 1000);
+        alert(`ปิดเสียงชั่วคราว ${sec} วินาที`);
     };
 
-    // --- ฟังก์ชันบันทึกการตรวจสอบ (ปิดจ๊อบ) ---
     window.confirmClear = (id) => {
-        // อัปเดตค่ากลับเป็น false เพื่อหยุดการแจ้งเตือน
         const updates = {};
         updates[`Status/${id}/panic`] = false;
         updates[`Status/${id}/check`] = false;
         updates[`Status/${id}/message`] = "ปกติ";
-
-        update(ref(db), updates).then(() => {
-            alert(`บ้าน ${id} ตรวจสอบเรียบร้อย สถานะกลับสู่ปกติ`);
-        });
+        update(ref(db), updates).then(() => { alert('ตรวจสอบเรียบร้อย'); });
     };
 
-    // นาฬิกาแบบไทย
-    setInterval(() => {
-        document.getElementById('clock').innerText = new Date().toLocaleTimeString('th-TH');
-    }, 1000);
+    setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString('th-TH'); }, 1000);
 </script>
 </body>
 </html>

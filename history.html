@@ -2,85 +2,43 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ประวัติเหตุการณ์ - Security History</title>
+    <title>ประวัติเหตุการณ์ - Village Security</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { 
-            --primary: #00d4ff; --bg: #0f172a; --card: rgba(30, 41, 59, 0.7); 
-            --text: #fff; --danger: #ff4d4d; --success: #2ecc71; --border: rgba(255,255,255,0.1);
-        }
-        .light-mode { 
-            --bg: #f1f5f9; --card: #ffffff; --text: #1e293b; 
-            --primary: #0284c7; --border: rgba(0,0,0,0.1);
-        }
-
-        body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; transition: 0.5s; }
-        
-        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-        .btn-back { color: var(--text); text-decoration: none; background: var(--card); padding: 8px 15px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.9rem; transition: 0.3s; }
-        .btn-back:hover { background: var(--primary); color: #000; }
-
-        /* ส่วนปฏิทิน */
-        .calendar-card { background: var(--card); border-radius: 15px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border); }
-        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .month-title { font-size: 1.2rem; font-weight: 600; color: var(--primary); }
-        .nav-btn { cursor: pointer; color: var(--primary); font-size: 1.2rem; padding: 5px 12px; }
-
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; }
-        .day-name { font-size: 0.8rem; color: #64748b; padding-bottom: 10px; font-weight: 600; }
-        .day { aspect-ratio: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; border-radius: 8px; transition: 0.2s; position: relative; font-size: 0.95rem; }
-        .day:hover { background: rgba(0, 212, 255, 0.1); }
-        .day.selected { background: var(--primary) !important; color: #000; font-weight: 600; }
-        .event-dot { width: 6px; height: 6px; background: var(--danger); border-radius: 50%; position: absolute; bottom: 4px; }
-
-        /* ตารางข้อมูล */
-        .history-list-card { background: var(--card); border-radius: 15px; padding: 15px; border: 1px solid var(--border); overflow-x: auto; }
-        .table-header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        h3 { margin: 0; font-size: 1rem; color: var(--primary); }
-        
-        table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        th { text-align: left; padding: 12px; color: var(--primary); border-bottom: 2px solid var(--primary); font-size: 0.9rem; }
-        td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
-        .inspector-tag { color: var(--success); font-weight: 600; }
-        .log-text { color: var(--text); opacity: 0.8; font-style: italic; }
+        body { font-family: 'Prompt', sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .calendar-card { background: #1e293b; border-radius: 15px; padding: 20px; margin-bottom: 20px; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; text-align: center; }
+        .day { padding: 15px; background: #334155; border-radius: 8px; position: relative; cursor: pointer; }
+        .day.has-event::after { content: ''; width: 8px; height: 8px; background: #e74c3c; border-radius: 50%; position: absolute; bottom: 5px; right: 5px; }
+        .day:hover { background: #475569; }
+        .day.selected { outline: 2px solid #00d4ff; }
+        .log-list { background: #1e293b; border-radius: 15px; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #334155; }
+        th { color: #00d4ff; }
+        .back-btn { display: inline-block; margin-bottom: 20px; color: #94a3b8; text-decoration: none; }
     </style>
 </head>
 <body>
-
-    <div class="header">
-        <a href="index.html" class="btn-back"><i class="fas fa-arrow-left"></i> กลับหน้าหลัก</a>
-        <h2 style="margin:0; font-size: 1.3rem;"><i class="fas fa-history"></i> ประวัติเหตุการณ์</h2>
-    </div>
-
+<div class="container">
+    <a href="index.html" class="back-btn">⬅️ กลับหน้าหลัก</a>
+    <h1 id="calTitle">ประวัติเหตุการณ์</h1>
+    
     <div class="calendar-card">
-        <div class="calendar-header">
-            <div class="nav-btn" onclick="changeMonth(-1)"><i class="fas fa-angle-double-left"></i></div>
-            <div class="month-title" id="monthDisplay">กำลังโหลด...</div>
-            <div class="nav-btn" onclick="changeMonth(1)"><i class="fas fa-angle-double-right"></i></div>
-        </div>
-        <div class="calendar-grid" id="calendarGrid"></div>
+        <div id="calendar" class="calendar-grid"></div>
     </div>
 
-    <div class="history-list-card">
-        <div class="table-header-flex">
-            <h3 id="tableTitle">รายการของเดือนนี้</h3>
-            <button class="btn-back" id="btnClearFilter" style="display:none; padding: 4px 10px; font-size: 0.7rem;" onclick="resetFilter()">แสดงทั้งเดือน</button>
-        </div>
-        <table id="historyTable">
+    <div class="log-list">
+        <h3>รายละเอียดประจำวันที่ <span id="selectedDateText">-</span></h3>
+        <table id="logTable">
             <thead>
-                <tr>
-                    <th>วัน-เวลา</th>
-                    <th>บ้านที่เกิดเหตุ</th>
-                    <th>ผู้ตรวจสอบ</th>
-                    <th>ระยะเวลา</th>
-                    <th>สาเหตุ/บันทึก</th>
-                </tr>
+                <tr><th>เวลา</th><th>บ้าน</th><th>เหตุการณ์</th><th>ผู้ตรวจ</th></tr>
             </thead>
-            <tbody id="historyBody"></tbody>
+            <tbody id="logBody"></tbody>
         </table>
     </div>
+</div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -91,90 +49,61 @@
         authDomain: "village-security-adf63.firebaseapp.com",
         databaseURL: "https://village-security-adf63-default-rtdb.asia-southeast1.firebasedatabase.app",
         projectId: "village-security-adf63",
-        storageBucket: "village-security-adf63.firebasestorage.app",
         appId: "1:943368318320:web:7bfb07a8c1db15952233b5"
     };
 
     const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
-    
-    let currentViewDate = new Date();
-    let allHistory = [];
-    let selectedDateStr = null;
-    const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+    const db = getDatabase(app);
+    let allLogs = {};
 
-    // ธีม
-    onValue(ref(database, 'Settings'), (snap) => {
-        const settings = snap.val() || {};
-        const mode = settings.Theme || 'dark';
-        const isDark = mode === 'dark' || (mode === 'auto' && (new Date().getHours() < 6 || new Date().getHours() >= 18));
-        document.body.className = isDark ? '' : 'light-mode';
-    });
-
-    // ประวัติ
-    onValue(ref(database, 'History'), (snap) => {
-        const data = snap.val();
-        allHistory = data ? Object.values(data).sort((a, b) => b.timestamp - a.timestamp) : [];
+    onValue(ref(db, 'AuditLogs'), (snap) => {
+        allLogs = snap.val() || {};
         renderCalendar();
-        renderTable();
     });
 
     function renderCalendar() {
-        const grid = document.getElementById('calendarGrid');
-        const display = document.getElementById('monthDisplay');
-        grid.innerHTML = "";
-        const year = currentViewDate.getFullYear();
-        const month = currentViewDate.getMonth();
-        display.innerText = `${monthNames[month]} ${year + 543}`;
+        const now = new Date();
+        const cal = document.getElementById('calendar');
+        cal.innerHTML = "";
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dateStr = `${i}/${now.getMonth()+1}/${now.getFullYear()}`;
+            const hasEvent = Object.values(allLogs).some(log => {
+                const d = new Date(log.timestamp);
+                return d.getDate() === i && d.getMonth() === now.getMonth();
+            });
 
-        ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].forEach(d => grid.innerHTML += `<div class="day-name">${d}</div>`);
-        const firstDay = new Date(year, month, 1).getDay();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-        for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div></div>`;
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            const hasEvent = allHistory.some(h => h.startTime.startsWith(dateKey));
-            const dayEl = document.createElement('div');
-            dayEl.className = 'day' + (selectedDateStr === dateKey ? ' selected' : '');
-            dayEl.innerText = d;
-            if (hasEvent) dayEl.innerHTML += `<div class="event-dot"></div>`;
-            dayEl.onclick = () => { selectedDateStr = (selectedDateStr === dateKey) ? null : dateKey; renderCalendar(); renderTable(); };
-            grid.appendChild(dayEl);
+            const div = document.createElement('div');
+            div.className = `day ${hasEvent ? 'has-event' : ''}`;
+            div.innerText = i;
+            div.onclick = () => showLogs(i);
+            cal.appendChild(div);
         }
     }
 
-    function renderTable() {
-        const body = document.getElementById('historyBody');
+    function showLogs(day) {
+        const now = new Date();
+        document.getElementById('selectedDateText').innerText = `${day} ${now.toLocaleDateString('th-TH', {month:'long', year:'numeric'})}`;
+        const body = document.getElementById('logBody');
         body.innerHTML = "";
-        const filtered = allHistory.filter(item => {
-            if (selectedDateStr) return item.startTime.startsWith(selectedDateStr);
-            return new Date(item.startTime).getMonth() === currentViewDate.getMonth() && new Date(item.startTime).getFullYear() === currentViewDate.getFullYear();
-        });
+        
+        const dailyLogs = Object.values(allLogs).filter(log => {
+            const d = new Date(log.timestamp);
+            return d.getDate() === day && d.getMonth() === now.getMonth();
+        }).sort((a,b) => b.timestamp - a.timestamp);
 
-        document.getElementById('tableTitle').innerText = selectedDateStr ? `เหตุการณ์วันที่ ${selectedDateStr}` : `รายการของเดือน ${monthNames[currentViewDate.getMonth()]}`;
-        document.getElementById('btnClearFilter').style.display = selectedDateStr ? "block" : "none";
-
-        filtered.forEach(item => {
-            const start = new Date(item.startTime);
-            const end = new Date(item.endTime);
-            const duration = Math.floor(Math.abs(end - start) / 60000);
-            
-            body.insertAdjacentHTML('beforeend', `
-                <tr>
-                    <td>${start.getDate()}/${start.getMonth()+1} | ${start.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</td>
-                    <td><strong>${item.houseName}</strong></td>
-                    <td class="inspector-tag"><i class="fas fa-user-shield"></i> ${item.inspector || '-'}</td>
-                    <td>${duration > 0 ? duration + ' นาที' : 'ไม่ถึง 1 นาที'}</td>
-                    <td class="log-text">${item.log}</td>
-                </tr>
-            `);
+        dailyLogs.forEach(log => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${new Date(log.timestamp).toLocaleTimeString('th-TH')}</td>
+                <td>${log.houseId}</td>
+                <td>${log.detail}</td>
+                <td>${log.inspector}</td>
+            `;
+            body.appendChild(tr);
         });
-        if (filtered.length === 0) body.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:40px; opacity:0.5;">ไม่มีข้อมูล</td></tr>`;
     }
-
-    window.changeMonth = (val) => { selectedDateStr = null; currentViewDate.setMonth(currentViewDate.getMonth() + val); renderCalendar(); renderTable(); };
-    window.resetFilter = () => { selectedDateStr = null; renderCalendar(); renderTable(); };
 </script>
 </body>
 </html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบเฝ้าระวังภัย - Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root { --safe: #2ecc71; --danger: #e74c3c; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --accent: #00d4ff; --warning: #f1c40f; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 50px; }
+        
+        /* Responsive Header Design */
+        .header-main { background: var(--card); border-bottom: 1px solid #334155; position: sticky; top: 0; z-index: 1000; }
+        .row-1 { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 15px 20px; gap: 10px; }
+        .row-2 { display: flex; background: rgba(0,0,0,0.2); overflow-x: auto; }
+        .stat-item { flex: 1; text-decoration: none; color: var(--text); padding: 12px; text-align: center; border-right: 1px solid #334155; min-width: 120px; transition: 0.3s; }
+        .stat-item:last-child { border-right: none; }
+        .stat-item:hover { background: rgba(0,212,255,0.1); }
+        .stat-value { display: block; font-size: 1.5rem; font-weight: 600; color: var(--accent); }
+        .stat-label { font-size: 0.75rem; color: #94a3b8; }
+
+        /* Dynamic Alert Bar (Row 3) */
+        .alert-bar { background: var(--danger); color: white; padding: 12px 20px; text-align: center; display: none; font-weight: 600; sticky; top: 125px; z-index: 999; animation: blink 1.5s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+
+        /* Dashboard Grid */
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 20px; }
+        .house-card { background: var(--card); border-radius: 12px; padding: 20px; text-align: center; border-bottom: 5px solid var(--safe); transition: 0.4s; }
+        .house-card.alert-active { border-bottom-color: var(--danger); box-shadow: 0 0 20px rgba(231, 76, 60, 0.3); }
+        .house-card.highlight { transform: scale(1.05); outline: 3px solid var(--warning); }
+
+        /* UI Elements */
+        .btn { border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 10px; font-family: 'Prompt'; font-size: 0.95rem; }
+        .btn-snooze { background: #475569; color: white; }
+        .btn-close { background: var(--safe); color: white; }
+        
+        /* Modal for Reporting */
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); }
+        .modal-content { background: var(--card); margin: 10vh auto; padding: 30px; border-radius: 15px; width: 90%; max-width: 450px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .modal-input { width: 100%; padding: 12px; margin: 12px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; font-family: 'Prompt'; }
+
+        /* Initial Setup Overlay */
+        #welcomeOverlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; }
+        .btn-start { background: var(--accent); color: #0f172a; padding: 18px 45px; font-size: 1.3rem; border-radius: 50px; width: auto; }
+
+        @media (max-width: 600px) {
+            .row-1 { flex-direction: column; text-align: center; }
+            .stat-value { font-size: 1.2rem; }
+            .grid-container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="welcomeOverlay">
+    <h1 style="margin-bottom: 10px;">🛡️ SECURITY COMMAND CENTER</h1>
+    <p style="color:#94a3b8; margin-bottom: 30px;">ยินดีต้อนรับคุณลี เข้าสู่ระบบจัดการความปลอดภัย</p>
+    <button class="btn btn-start" onclick="startSystem()">คลิกเพื่อเริ่มต้นระบบ</button>
+</div>
+
+<div class="header-main">
+    <div class="row-1">
+        <div id="dateNow" style="color: #94a3b8; font-size: 0.9rem;"></div>
+        <h2 id="villageTitle" style="margin:0; color: var(--accent); letter-spacing: 1px;">ชื่อโครงการ</h2>
+        <div id="clock" style="font-weight: 600; font-size: 1.2rem;">00:00:00</div>
+    </div>
+    <div class="row-2">
+        <a href="history.html" class="stat-item"><span class="stat-value" id="safeDays">0</span><span class="stat-label">ปลอดภัยมาแล้ว (วัน)</span></a>
+        <a href="history.html" class="stat-item"><span class="stat-value" id="monthEvents">0</span><span class="stat-label">เหตุเดือนนี้</span></a>
+        <a href="history.html" class="stat-item"><span class="stat-value" id="yearEvents">0</span><span class="stat-label">เหตุปีนี้</span></a>
+    </div>
+    <div id="alertBar" class="alert-bar"></div>
+</div>
+
+<div id="dashboard" class="grid-container"></div>
+
+<div id="reportModal" class="modal">
+    <div class="modal-content">
+        <h2 id="modalHouseTitle" style="color:var(--accent); margin-top:0;">ส่งรายงานตรวจสอบ</h2>
+        <p style="font-size: 0.85rem; color:#94a3b8;">กรุณาระบุข้อมูลเพื่อปิดการแจ้งเตือน</p>
+        <input type="text" id="inspectorName" class="modal-input" placeholder="ชื่อผู้ตรวจสอบ">
+        <textarea id="inspectDetail" class="modal-input" rows="3" placeholder="รายละเอียดเหตุการณ์ที่พบ"></textarea>
+        <button class="btn btn-close" onclick="submitFinalClear()">บันทึกและปิดเหตุการณ์</button>
+        <button class="btn" style="background:transparent; color:#94a3b8;" onclick="closeModal()">ยกเลิก</button>
+    </div>
+</div>
+
+<audio id="sirenSound" loop><source src="https://www.soundjay.com/buttons/beep-01a.mp3" type="audio/mpeg"></audio>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, onValue, update, push, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBGVarHKqwjhNR_BGANj8CnSWahIHtJNiM",
+        authDomain: "village-security-adf63.firebaseapp.com",
+        databaseURL: "https://village-security-adf63-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "village-security-adf63",
+        storageBucket: "village-security-adf63.firebasestorage.app",
+        appId: "1:943368318320:web:7bfb07a8c1db15952233b5"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    let settings = {}, currentStatuses = {}, isSnoozed = false, activeHouseId = "", snoozeTimer = null;
+
+    window.startSystem = () => {
+        document.getElementById('welcomeOverlay').style.display = 'none';
+        const siren = document.getElementById('sirenSound');
+        siren.play().then(() => siren.pause());
+    };
+
+    onValue(ref(db, 'Settings'), (snap) => {
+        settings = snap.val() || {};
+        document.getElementById('villageTitle').innerText = settings.VillageName || "Dashboard";
+        renderDashboard();
+    });
+
+    onValue(ref(db, 'AuditLogs'), (snap) => {
+        calculateStats(snap.val() || {});
+    });
+
+    onValue(ref(db, 'Status'), (snap) => {
+        currentStatuses = snap.val() || {};
+        renderDashboard();
+    });
+
+    function renderDashboard() {
+        const container = document.getElementById('dashboard');
+        const alertBar = document.getElementById('alertBar');
+        container.innerHTML = '';
+        let alerts = [];
+
+        for (let i = 1; i <= (settings.TotalHouses || 0); i++) {
+            const hid = "House_" + String(i).padStart(3, '0');
+            const hname = (settings.HouseNames && settings.HouseNames[hid]) || hid;
+            const state = currentStatuses[hid] || {};
+            const isAlert = state.is_alerting === true; // ใช้ is_alerting ตาม Logic ใหม่
+
+            if (isAlert) alerts.push({id: hid, name: hname});
+
+            const card = document.createElement('div');
+            card.className = `house-card ${isAlert ? 'alert-active' : ''}`;
+            card.id = `card-${hid}`;
+            card.innerHTML = `
+                <h3 style="margin:0;">${hname}</h3>
+                ${isAlert ? `
+                    <div style="margin:15px 0;">
+                        <span style="color:var(--danger); font-weight:600; display:block;">🚨 ${state.event_type || 'แจ้งเหตุ'}</span>
+                        <small style="color:#94a3b8;">ตั้งแต่: ${state.start_time ? new Date(state.start_time).toLocaleTimeString('th-TH') : '-'}</small>
+                    </div>
+                    <button class="btn btn-snooze" onclick="window.triggerSnooze()">ปิดเสียงชั่วคราว</button>
+                    <button class="btn btn-close" onclick="window.openReport('${hid}','${hname}')">บันทึกการตรวจสอบ</button>
+                ` : '<p style="color:var(--safe); margin:20px 0;">✅ สถานะปกติ</p>'}
+            `;
+            container.appendChild(card);
+        }
+
+        if (alerts.length > 0) {
+            alertBar.style.display = 'block';
+            alertBar.innerHTML = `⚠️ พบเหตุการณ์ (${alerts.length}): ` + alerts.map(a => 
+                `<span style="text-decoration:underline; cursor:pointer; margin-left:10px;" onclick="window.jumpTo('${a.id}')">${a.name}</span>`
+            ).join(' | ');
+            if (!isSnoozed) document.getElementById('sirenSound').play().catch(()=>{});
+        } else {
+            alertBar.style.display = 'none';
+            document.getElementById('sirenSound').pause();
+        }
+    }
+
+    window.jumpTo = (id) => {
+        const el = document.getElementById(`card-${id}`);
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('highlight');
+        setTimeout(() => el.classList.remove('highlight'), 3000);
+    };
+
+    window.triggerSnooze = () => {
+        if (isSnoozed) return;
+        isSnoozed = true;
+        document.getElementById('sirenSound').pause();
+        let time = settings.SnoozeTime || 30;
+        alert(`ปิดเสียงชั่วคราว ${time} วินาที`);
+        clearTimeout(snoozeTimer);
+        snoozeTimer = setTimeout(() => { isSnoozed = false; renderDashboard(); }, time * 1000);
+    };
+
+    window.openReport = (id, name) => {
+        const state = currentStatuses[id] || {};
+        if (state.contact_status === true) { // เช็คสถานะสายช็อตจริง
+            alert(`❌ ไม่สามารถปิดงานได้: บ้าน ${name} ยังมีการช็อตสายอยู่ กรุณาแก้ไขที่หน้างานก่อน`);
+            return;
+        }
+        activeHouseId = id;
+        document.getElementById('modalHouseTitle').innerText = name;
+        document.getElementById('reportModal').style.display = 'block';
+    };
+
+    window.closeModal = () => document.getElementById('reportModal').style.display = 'none';
+
+    window.submitFinalClear = () => {
+        const name = document.getElementById('inspectorName').value;
+        const detail = document.getElementById('inspectDetail').value;
+        if (!name || !detail) return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+
+        const updates = {};
+        updates[`Status/${activeHouseId}/is_alerting`] = false;
+        updates[`Status/${activeHouseId}/message`] = "ปกติ";
+
+        update(ref(db), updates).then(() => {
+            push(ref(db, 'AuditLogs'), {
+                houseId: activeHouseId,
+                inspector: name,
+                detail: detail,
+                startTime: currentStatuses[activeHouseId].start_time || Date.now(),
+                timestamp: Date.now()
+            });
+            alert("✅ บันทึกข้อมูลและปิดเหตุการณ์เรียบร้อย");
+            closeModal();
+            document.getElementById('inspectorName').value = "";
+            document.getElementById('inspectDetail').value = "";
+        });
+    };
+
+    function calculateStats(logs) {
+        const now = new Date();
+        let month = 0, year = 0, last = 0;
+        Object.values(logs).forEach(log => {
+            const d = new Date(log.timestamp);
+            if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) month++;
+            if (d.getFullYear() === now.getFullYear()) year++;
+            if (log.timestamp > last) last = log.timestamp;
+        });
+        document.getElementById('monthEvents').innerText = month;
+        document.getElementById('yearEvents').innerText = year;
+        const diff = last === 0 ? 0 : Math.floor((Date.now() - last) / (1000*60*60*24));
+        document.getElementById('safeDays').innerText = diff;
+    }
+
+    setInterval(() => {
+        const d = new Date();
+        document.getElementById('clock').innerText = d.toLocaleTimeString('th-TH');
+        document.getElementById('dateNow').innerText = d.toLocaleDateString('th-TH', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    }, 1000);
+</script>
+</body>
+</html>

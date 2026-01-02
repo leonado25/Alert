@@ -1,136 +1,49 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Village Configuration</title>
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root { --primary: #00d4ff; --save: #2ecc71; --bg: #0f172a; --card: rgba(30, 41, 59, 0.9); }
-        body { font-family: 'Prompt', sans-serif; background: #1e293b; color: #f8fafc; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .section-card { background: var(--card); border-radius: 15px; padding: 20px; margin-bottom: 20px; border-left: 5px solid transparent; }
-        .section-card.changed { border-left-color: #f1c40f; }
-        input, select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; font-family: 'Prompt'; }
-        .btn-save { background: var(--save); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; float: right; font-weight: 600; margin-top: 10px; }
-        .name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .warning-text { color: #f1c40f; font-size: 0.8rem; display: none; margin-top: 5px; }
-        .changed .warning-text { display: block; }
-        .clear { clear: both; }
-        h1 { border-bottom: 1px solid #334155; padding-bottom: 15px; }
-    </style>
-</head>
-<body>
-<div class="container">
-    <h1><i class="fas fa-cog"></i> ตั้งค่าระบบหมู่บ้าน</h1>
-
-    <div class="section-card" id="card-village">
-        <div style="font-weight:600; margin-bottom:10px;"><i class="fas fa-city"></i> ชื่อหมู่บ้าน / โครงการ</div>
-        <input type="text" id="villageName" placeholder="ระบุชื่อหมู่บ้าน" oninput="markChanged('card-village')">
-        <p class="warning-text">⚠️ ข้อมูลเปลี่ยนไป กรุณากดบันทึก</p>
-        <button class="btn-save" onclick="saveVillageName()">บันทึกชื่อหมู่บ้าน</button>
-        <div class="clear"></div>
+<div class="section-card" id="card-snooze">
+    <div style="font-weight:600; margin-bottom:10px;">
+        <i class="fas fa-clock"></i> ตั้งค่าเวลา Snooze (วินาที)
     </div>
-
-    <div class="section-card" id="card-theme">
-        <div style="font-weight:600; margin-bottom:10px;"><i class="fas fa-palette"></i> โหมดการแสดงผล (Theme)</div>
-        <select id="themeMode" onchange="markChanged('card-theme')">
-            <option value="auto">Auto (ปรับตามพระอาทิตย์ ขึ้น-ลง)</option>
-            <option value="light">โหมดกลางวัน (Light Mode)</option>
-            <option value="dark">โหมดกลางคืน (Dark Mode)</option>
-        </select>
-        <p class="warning-text">⚠️ ข้อมูลเปลี่ยนไป กรุณากดบันทึก</p>
-        <button class="btn-save" onclick="saveTheme()">บันทึกโหมดธีม</button>
-        <div class="clear"></div>
+    <div class="input-group">
+        <input type="number" id="snzMain" placeholder="ระบุจำนวนวินาที เช่น 30" oninput="markChanged('card-snooze')">
     </div>
-
-    <div class="section-card" id="card-total">
-        <div style="font-weight:600; margin-bottom:10px;"><i class="fas fa-home"></i> จำนวนบ้านทั้งหมด</div>
-        <input type="number" id="totalHouses" oninput="markChanged('card-total')">
-        <button class="btn-save" onclick="saveTotalHouses()">บันทึกจำนวนบ้าน</button>
-        <div class="clear"></div>
-    </div>
-
-    <div class="section-card" id="card-snooze">
-        <div style="font-weight:600; margin-bottom:10px;"><i class="fas fa-clock"></i> ตั้งค่าเวลา Snooze (นาที)</div>
-        <div class="name-grid">
-            <input type="number" id="snz1" oninput="markChanged('card-snooze')">
-            <input type="number" id="snz2" oninput="markChanged('card-snooze')">
-            <input type="number" id="snz3" oninput="markChanged('card-snooze')">
-            <input type="number" id="snz4" oninput="markChanged('card-snooze')">
-        </div>
-        <button class="btn-save" onclick="saveSnooze()">บันทึกเวลา Snooze</button>
-        <div class="clear"></div>
-    </div>
-
-    <div class="section-card" id="card-names">
-        <div style="font-weight:600; margin-bottom:10px;"><i class="fas fa-tags"></i> ตั้งชื่อเรียกบ้านแต่ละหลัง</div>
-        <div id="namesContainer" class="name-grid"></div>
-        <button class="btn-save" onclick="saveHouseNames()">บันทึกชื่อบ้านทั้งหมด</button>
-        <div class="clear"></div>
-    </div>
+    <p class="warning-text">⚠️ ข้อมูลเปลี่ยนไป กรุณากดบันทึก</p>
+    <button class="btn-save" onclick="saveSnooze()">บันทึกเวลา Snooze</button>
+    <div class="clear"></div>
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    // ... ส่วนบนคงเดิม ...
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyBGVarHKqwjhNR_BGANj8CnSWahIHtJNiM",
-        authDomain: "village-security-adf63.firebaseapp.com",
-        databaseURL: "https://village-security-adf63-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "village-security-adf63",
-        storageBucket: "village-security-adf63.firebasestorage.app",
-        appId: "1:943368318320:web:7bfb07a8c1db15952233b5"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
-
-    window.markChanged = (id) => { document.getElementById(id).classList.add('changed'); window.unsaved = true; };
-    window.onbeforeunload = () => window.unsaved ? "ยังไม่ได้บันทึกข้อมูล!" : null;
-
-    window.saveVillageName = () => {
-        set(ref(database, 'Settings/VillageName'), document.getElementById('villageName').value)
-        .then(() => { alert('บันทึกชื่อหมู่บ้านแล้ว'); document.getElementById('card-village').classList.remove('changed'); checkUnsaved(); });
-    };
-
-    window.saveTheme = () => {
-        set(ref(database, 'Settings/Theme'), document.getElementById('themeMode').value)
-        .then(() => { alert('บันทึกธีมแล้ว'); document.getElementById('card-theme').classList.remove('changed'); checkUnsaved(); });
-    };
-
-    window.saveTotalHouses = () => {
-        set(ref(database, 'Settings/TotalHouses'), parseInt(document.getElementById('totalHouses').value))
-        .then(() => { alert('บันทึกจำนวนบ้านแล้ว'); document.getElementById('card-total').classList.remove('changed'); checkUnsaved(); });
-    };
-
+    // แก้ไขฟังก์ชัน saveSnooze
     window.saveSnooze = () => {
-        const t = [parseInt(document.getElementById('snz1').value), parseInt(document.getElementById('snz2').value), parseInt(document.getElementById('snz3').value), parseInt(document.getElementById('snz4').value)];
-        set(ref(database, 'Settings/SnoozeTimes'), t).then(() => { alert('บันทึกเวลาแล้ว'); document.getElementById('card-snooze').classList.remove('changed'); checkUnsaved(); });
+        const snoozeValue = parseInt(document.getElementById('snzMain').value) || 0;
+        // บันทึกเป็นตัวเลขเดี่ยวๆ ลงในกิ่ง SnoozeTime (วินาที)
+        set(ref(database, 'Settings/SnoozeTime'), snoozeValue)
+        .then(() => { 
+            alert('บันทึกเวลาหยุดแจ้งเตือนชั่วคราว ' + snoozeValue + ' วินาทีแล้ว'); 
+            document.getElementById('card-snooze').classList.remove('changed'); 
+            checkUnsaved(); 
+        });
     };
 
-    window.saveHouseNames = () => {
-        const names = {};
-        document.querySelectorAll('.house-name-input').forEach(inp => { names[inp.dataset.id] = inp.value; });
-        set(ref(database, 'Settings/HouseNames'), names).then(() => { alert('บันทึกชื่อบ้านแล้ว'); document.getElementById('card-names').classList.remove('changed'); checkUnsaved(); });
-    };
-
-    function checkUnsaved() { if(document.querySelectorAll('.changed').length === 0) window.unsaved = false; }
-
+    // แก้ไขส่วน onValue เพื่อดึงข้อมูลมาแสดงผล
     onValue(ref(database, 'Settings'), (snap) => {
         const d = snap.val(); if(!d) return;
+        
+        // ... การดึงค่าอื่นๆ คงเดิม ...
         document.getElementById('villageName').value = d.VillageName || "";
         document.getElementById('themeMode').value = d.Theme || "auto";
         document.getElementById('totalHouses').value = d.TotalHouses || 8;
+
+        // ดึงค่า SnoozeTime มาโชว์ในช่องกรอก
+        if(d.SnoozeTime !== undefined) {
+            document.getElementById('snzMain').value = d.SnoozeTime;
+        }
+
+        // ส่วนสร้างช่องชื่อบ้าน (Names Container)
         const container = document.getElementById('namesContainer');
         container.innerHTML = "";
         for(let i=1; i<=d.TotalHouses; i++){
             container.innerHTML += `<div><small>หลังที่ ${i}</small><input type="text" class="house-name-input" data-id="House${i}" value="${(d.HouseNames && d.HouseNames['House'+i]) || 'บ้านหลังที่ '+i}" oninput="markChanged('card-names')"></div>`;
         }
-        if(d.SnoozeTimes) { d.SnoozeTimes.forEach((t, i) => { document.getElementById('snz'+(i+1)).value = t; }); }
     });
 </script>
-</body>
-</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตั้งค่าระบบ - Village Security</title>
+    <style>
+        /* CSS เบื้องต้นสำหรับ ธีมสว่าง/มืด */
+        :root {
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+            --card-bg: #ffffff;
+        }
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --text-color: #f4f7f6;
+            --card-bg: #2d2d2d;
+        }
+        body { background-color: var(--bg-color); color: var(--text-color); font-family: 'Tahoma', sans-serif; transition: 0.3s; }
+        .container { max-width: 800px; margin: 20px auto; padding: 20px; }
+        .card { background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; }
+        .btn { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        .btn:hover { background: #218838; }
+        .alert-bar { background: #ffc107; color: #000; padding: 10px; text-align: center; display: none; position: sticky; top: 0; z-index: 1000; }
+        .house-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="saveAlert" class="alert-bar">⚠️ ข้อมูลมีการเปลี่ยนแปลง กรุณากดบันทึกเพื่ออัปเดตระบบ</div>
+
+    <div class="container">
+        <h2>⚙️ ตั้งค่าระบบรักษาความปลอดภัย</h2>
+
+        <div class="card">
+            <div class="input-group">
+                <label>ชื่อหมู่บ้าน/โครงการ</label>
+                <input type="text" id="villageName" oninput="showSaveAlert()" placeholder="ระบุชื่อโครงการ">
+            </div>
+            <button class="btn" onclick="saveSettings('villageName')">บันทึกชื่อโครงการ</button>
+        </div>
+
+        <div class="card">
+            <div class="input-group">
+                <label>ธีมการแสดงผล</label>
+                <select id="themeMode" onchange="changeTheme(this.value); showSaveAlert();">
+                    <option value="light">สว่าง</option>
+                    <option value="dark">มืด</option>
+                    <option value="auto">อัตโนมัติ (กลางวัน/กลางคืน)</option>
+                </select>
+            </div>
+            <button class="btn" onclick="saveSettings('theme')">บันทึกธีม</button>
+        </div>
+
+        <div class="card">
+            <div class="input-group">
+                <label>จำนวนบ้านในโครงการ</label>
+                <input type="number" id="houseCount" oninput="generateHouseFields(); showSaveAlert();" min="1" max="100">
+            </div>
+            <div id="houseNamesContainer" class="house-list">
+                </div>
+            <br>
+            <button class="btn" onclick="saveHouseNames()">บันทึกข้อมูลบ้าน</button>
+        </div>
+
+        <div class="card">
+            <div class="input-group">
+                <label>เวลาหยุดเสียงแจ้งเตือนชั่วคราว (วินาที)</label>
+                <input type="number" id="snoozeTime" oninput="showSaveAlert()" placeholder="เช่น 30">
+            </div>
+            <button class="btn" onclick="saveSettings('snooze')">บันทึกเวลา Snooze</button>
+        </div>
+
+    </div>
+
+    <script type="module">
+        // Import Firebase SDK ที่จำเป็นที่นี่
+        // ตรงนี้เดี๋ยวเราจะมาเขียน JavaScript Logic กันต่อหลังจากคุณลีดูหน้าตา HTML นะคะ
+    </script>
+
+    <script>
+        // ฟังก์ชันสร้างช่องกรอกชื่อบ้านตามจำนวนที่ระบุ
+        function generateHouseFields() {
+            const count = document.getElementById('houseCount').value;
+            const container = document.getElementById('houseNamesContainer');
+            container.innerHTML = ''; // ล้างค่าเก่า
+
+            for (let i = 1; i <= count; i++) {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <label>ชื่อบ้านหลังที่ ${i}</label>
+                    <input type="text" class="house-name-input" data-id="House_${String(i).padStart(3, '0')}" oninput="showSaveAlert()" placeholder="ระบุชื่อเรียก">
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        // ฟังก์ชันแจ้งเตือนเมื่อมีการเปลี่ยนค่า
+        function showSaveAlert() {
+            document.getElementById('saveAlert').style.display = 'block';
+        }
+
+        // ฟังก์ชันเปลี่ยนธีมเบื้องต้น
+        function changeTheme(mode) {
+            if(mode === 'dark') document.body.setAttribute('data-theme', 'dark');
+            else if(mode === 'light') document.body.removeAttribute('data-theme');
+            // 'auto' จะต้องเขียน Logic เช็คเวลาเพิ่มเติม
+        }
+
+        // ส่วนของการ Save ข้อมูลลง Firebase (Logic จะสรุปในขั้นตอนถัดไป)
+        function saveSettings(type) {
+            alert('กำลังบันทึกข้อมูล ' + type + ' ไปยัง Firebase...');
+            document.getElementById('saveAlert').style.display = 'none';
+        }
+
+        function saveHouseNames() {
+            alert('กำลังบันทึกรายชื่อบ้านทั้งหมด...');
+            document.getElementById('saveAlert').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

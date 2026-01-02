@@ -1,49 +1,117 @@
-<div class="section-card" id="card-snooze">
-    <div style="font-weight:600; margin-bottom:10px;">
-        <i class="fas fa-clock"></i> ตั้งค่าเวลา Snooze (วินาที)
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตั้งค่าระบบ - Village Security</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --primary: #00d4ff; --save: #2ecc71; --bg: #0f172a; --card: rgba(30, 41, 59, 0.9); }
+        body { font-family: 'Prompt', sans-serif; background: #1e293b; color: #f8fafc; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section-card { background: var(--card); border-radius: 15px; padding: 20px; margin-bottom: 20px; border-left: 5px solid transparent; }
+        .section-card.changed { border-left-color: #f1c40f; }
+        input, select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; font-family: 'Prompt'; margin-top: 5px; }
+        .btn-save { background: var(--save); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; float: right; font-weight: 600; margin-top: 10px; transition: 0.3s; }
+        .btn-save:hover { opacity: 0.8; }
+        .name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
+        .warning-text { color: #f1c40f; font-size: 0.8rem; display: none; margin-top: 5px; }
+        .changed .warning-text { display: block; }
+        .clear { clear: both; }
+        h1 { border-bottom: 1px solid #334155; padding-bottom: 15px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1><i class="fas fa-cog"></i> ตั้งค่าระบบหมู่บ้าน</h1>
+
+    <div class="section-card" id="card-village">
+        <div style="font-weight:600;"><i class="fas fa-city"></i> ชื่อหมู่บ้าน / โครงการ</div>
+        <input type="text" id="villageName" placeholder="ระบุชื่อหมู่บ้าน" oninput="markChanged('card-village')">
+        <p class="warning-text">⚠️ ข้อมูลเปลี่ยนไป กรุณากดบันทึก</p>
+        <button class="btn-save" onclick="saveVillageName()">บันทึกชื่อหมู่บ้าน</button>
+        <div class="clear"></div>
     </div>
-    <div class="input-group">
-        <input type="number" id="snzMain" placeholder="ระบุจำนวนวินาที เช่น 30" oninput="markChanged('card-snooze')">
+
+    <div class="section-card" id="card-total">
+        <div style="font-weight:600;"><i class="fas fa-home"></i> จำนวนบ้านทั้งหมด (บอร์ด Arduino)</div>
+        <input type="number" id="totalHouses" oninput="markChanged('card-total')" placeholder="ระบุจำนวนบ้าน เช่น 8">
+        <button class="btn-save" onclick="saveTotalHouses()">บันทึกจำนวนบ้าน</button>
+        <div class="clear"></div>
     </div>
-    <p class="warning-text">⚠️ ข้อมูลเปลี่ยนไป กรุณากดบันทึก</p>
-    <button class="btn-save" onclick="saveSnooze()">บันทึกเวลา Snooze</button>
-    <div class="clear"></div>
+
+    <div class="section-card" id="card-snooze">
+        <div style="font-weight:600;"><i class="fas fa-clock"></i> เวลา Snooze ปิดเสียงชั่วคราว (วินาที)</div>
+        <input type="number" id="snzMain" oninput="markChanged('card-snooze')" placeholder="ระบุวินาที เช่น 30">
+        <button class="btn-save" onclick="saveSnooze()">บันทึกเวลา Snooze</button>
+        <div class="clear"></div>
+    </div>
+
+    <div class="section-card" id="card-names">
+        <div style="font-weight:600;"><i class="fas fa-tags"></i> ตั้งชื่อเรียกบ้านแต่ละหลัง (เรียงตาม ID)</div>
+        <div id="namesContainer" class="name-grid"></div>
+        <button class="btn-save" onclick="saveHouseNames()">บันทึกชื่อบ้านทั้งหมด</button>
+        <div class="clear"></div>
+    </div>
 </div>
 
 <script type="module">
-    // ... ส่วนบนคงเดิม ...
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // แก้ไขฟังก์ชัน saveSnooze
-    window.saveSnooze = () => {
-        const snoozeValue = parseInt(document.getElementById('snzMain').value) || 0;
-        // บันทึกเป็นตัวเลขเดี่ยวๆ ลงในกิ่ง SnoozeTime (วินาที)
-        set(ref(database, 'Settings/SnoozeTime'), snoozeValue)
-        .then(() => { 
-            alert('บันทึกเวลาหยุดแจ้งเตือนชั่วคราว ' + snoozeValue + ' วินาทีแล้ว'); 
-            document.getElementById('card-snooze').classList.remove('changed'); 
-            checkUnsaved(); 
-        });
+    const firebaseConfig = {
+        apiKey: "AIzaSyBGVarHKqwjhNR_BGANj8CnSWahIHtJNiM",
+        authDomain: "village-security-adf63.firebaseapp.com",
+        databaseURL: "https://village-security-adf63-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "village-security-adf63",
+        storageBucket: "village-security-adf63.firebasestorage.app",
+        appId: "1:943368318320:web:7bfb07a8c1db15952233b5"
     };
 
-    // แก้ไขส่วน onValue เพื่อดึงข้อมูลมาแสดงผล
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+
+    window.markChanged = (id) => { document.getElementById(id).classList.add('changed'); };
+
+    window.saveVillageName = () => {
+        set(ref(database, 'Settings/VillageName'), document.getElementById('villageName').value)
+        .then(() => { alert('บันทึกเรียบร้อย'); document.getElementById('card-village').classList.remove('changed'); });
+    };
+
+    window.saveTotalHouses = () => {
+        set(ref(database, 'Settings/TotalHouses'), parseInt(document.getElementById('totalHouses').value))
+        .then(() => { alert('บันทึกจำนวนบ้านแล้ว'); document.getElementById('card-total').classList.remove('changed'); });
+    };
+
+    window.saveSnooze = () => {
+        set(ref(database, 'Settings/SnoozeTime'), parseInt(document.getElementById('snzMain').value))
+        .then(() => { alert('บันทึกเวลา Snooze แล้ว'); document.getElementById('card-snooze').classList.remove('changed'); });
+    };
+
+    window.saveHouseNames = () => {
+        const names = {};
+        document.querySelectorAll('.house-name-input').forEach(inp => { names[inp.dataset.id] = inp.value; });
+        set(ref(database, 'Settings/HouseNames'), names).then(() => { alert('บันทึกชื่อบ้านแล้ว'); document.getElementById('card-names').classList.remove('changed'); });
+    };
+
     onValue(ref(database, 'Settings'), (snap) => {
         const d = snap.val(); if(!d) return;
-        
-        // ... การดึงค่าอื่นๆ คงเดิม ...
         document.getElementById('villageName').value = d.VillageName || "";
-        document.getElementById('themeMode').value = d.Theme || "auto";
-        document.getElementById('totalHouses').value = d.TotalHouses || 8;
+        document.getElementById('totalHouses').value = d.TotalHouses || 0;
+        document.getElementById('snzMain').value = d.SnoozeTime || 30;
 
-        // ดึงค่า SnoozeTime มาโชว์ในช่องกรอก
-        if(d.SnoozeTime !== undefined) {
-            document.getElementById('snzMain').value = d.SnoozeTime;
-        }
-
-        // ส่วนสร้างช่องชื่อบ้าน (Names Container)
         const container = document.getElementById('namesContainer');
         container.innerHTML = "";
         for(let i=1; i<=d.TotalHouses; i++){
-            container.innerHTML += `<div><small>หลังที่ ${i}</small><input type="text" class="house-name-input" data-id="House${i}" value="${(d.HouseNames && d.HouseNames['House'+i]) || 'บ้านหลังที่ '+i}" oninput="markChanged('card-names')"></div>`;
+            // สร้าง ID ให้ตรงกับ Arduino: House_001, House_002...
+            const houseId = "House_" + String(i).padStart(3, '0');
+            container.innerHTML += `<div><small style="color:#00d4ff">${houseId}</small>
+                <input type="text" class="house-name-input" data-id="${houseId}" 
+                value="${(d.HouseNames && d.HouseNames[houseId]) || 'บ้านหลังที่ '+i}" 
+                oninput="markChanged('card-names')"></div>`;
         }
     });
 </script>
+</body>
+</html>

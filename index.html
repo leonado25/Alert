@@ -2,30 +2,40 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>ระบบเฝ้าระวังภัย - Real-time Dashboard</title>
+    <title>ระบบเฝ้าระวังภัย - Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        :root { --bg: #f0f2f5; --text: #1c1e21; --card: #ffffff; --safe: #28a745; --danger: #dc3545; }
-        [data-theme="dark"] { --bg: #18191a; --text: #e4e6eb; --card: #242526; }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; transition: 0.3s; }
-        .header { background: var(--card); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; padding: 20px; }
-        .house-card { background: var(--card); border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-bottom: 5px solid var(--safe); transition: 0.3s; }
-        .house-card.alert-panic { border-bottom-color: var(--danger); animation: blink-red 1s infinite; }
-        .house-card.alert-check { border-bottom-color: #ffc107; animation: blink-orange 1s infinite; }
-        @keyframes blink-red { 0%, 100% { background: var(--card); } 50% { background: #ffcccc; } }
-        @keyframes blink-orange { 0%, 100% { background: var(--card); } 50% { background: #fff3cd; } }
-        .btn { cursor: pointer; border: none; padding: 8px 15px; border-radius: 5px; margin: 5px; font-weight: bold; }
-        .btn-snooze { background: #6c757d; color: white; }
+        :root { --safe: #2ecc71; --danger: #e74c3c; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; }
+        body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--text); margin: 0; transition: 0.3s; }
+        
+        .header { background: var(--card); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; padding: 20px; }
+        
+        .house-card { background: var(--card); border-radius: 15px; padding: 25px; text-align: center; border-bottom: 6px solid var(--safe); transition: 0.3s; position: relative; }
+        
+        /* สถานะแจ้งเตือนสีแดงกะพริบตามเงื่อนไขคุณลี */
+        .house-card.alert-active { border-bottom-color: var(--danger); animation: blink-bg 1s infinite; }
+        
+        @keyframes blink-bg { 
+            0%, 100% { background: var(--card); } 
+            50% { background: #450a0a; } 
+        }
+
+        .btn { border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 10px; font-family: 'Prompt'; }
+        .btn-snooze { background: #64748b; color: white; margin-bottom: 5px; }
         .btn-close { background: var(--safe); color: white; }
-        .btn-close:disabled { background: #ccc; cursor: not-allowed; }
-        #siren-player { display: none; }
+        
+        #clock { font-size: 1.5rem; font-weight: 600; color: #00d4ff; }
+        .status-tag { font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; background: #334155; margin-bottom: 10px; display: inline-block; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 id="villageTitle">กำลังโหลดชื่อโครงการ...</h1>
-    <div id="clock" style="font-size: 1.5rem; font-weight: bold;">00:00:00</div>
+    <div>
+        <h1 id="villageTitle" style="margin:0; font-size: 1.5rem;">ระบบรักษาความปลอดภัย</h1>
+    </div>
+    <div id="clock">00:00:00</div>
 </div>
 
 <div id="dashboard" class="grid-container">
@@ -39,98 +49,107 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    const firebaseConfig = { databaseURL: "https://village-security-adf63-default-rtdb.asia-southeast1.firebasedatabase.app" };
+    // ใช้ Config เดียวกับหน้า Setting ของคุณลี
+    const firebaseConfig = {
+        apiKey: "AIzaSyBGVarHKqwjhNR_BGANj8CnSWahIHtJNiM",
+        authDomain: "village-security-adf63.firebaseapp.com",
+        databaseURL: "https://village-security-adf63-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "village-security-adf63",
+        storageBucket: "village-security-adf63.firebasestorage.app",
+        appId: "1:943368318320:web:7bfb07a8c1db15952233b5"
+    };
+
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    let settings = {};
-    let snoozeTimer = null;
+    let appSettings = {};
     let isSnoozed = false;
+    let snoozeTimer = null;
 
-    // 1. โหลดการตั้งค่าโครงการ
+    // 1. ดึงค่า Config (ดึงตามกิ่งที่ไฟล์ Setting คุณลีบันทึกไว้)
     onValue(ref(db, 'Settings'), (snapshot) => {
-        settings = snapshot.val() || {};
-        document.getElementById('villageTitle').innerText = settings.village_name || "ระบบรักษาความปลอดภัย";
-        if(settings.theme) applyTheme(settings.theme);
-        initDashboard();
+        appSettings = snapshot.val() || {};
+        document.getElementById('villageTitle').innerText = appSettings.VillageName || "หมู่บ้านรักษาความปลอดภัย";
+        // ปรับธีมเบื้องต้น
+        if(appSettings.Theme === 'light') document.body.style.background = "#f8fafc";
     });
 
-    // 2. โหลดสถานะบ้านและเฝ้าดูการเปลี่ยนแปลง
-    function initDashboard() {
-        const statusRef = ref(db, 'Status');
-        onValue(statusRef, (snapshot) => {
-            const statuses = snapshot.val() || {};
-            const container = document.getElementById('dashboard');
-            container.innerHTML = '';
+    // 2. ดึงสถานะการแจ้งเตือนจาก Status
+    onValue(ref(db, 'Status'), (snapshot) => {
+        const statuses = snapshot.val() || {};
+        const container = document.getElementById('dashboard');
+        container.innerHTML = '';
+        
+        let shouldPlaySiren = false;
+        const total = appSettings.TotalHouses || 0;
 
-            let hasAnyAlert = false;
+        for (let i = 1; i <= total; i++) {
+            const houseId = "House" + i; // ตรงกับ data-id="House"+i ในหน้า Setting
+            const houseName = (appSettings.HouseNames && appSettings.HouseNames[houseId]) || "บ้านหลังที่ " + i;
+            const state = statuses[houseId] || {};
 
-            for (let i = 1; i <= settings.house_count; i++) {
-                const id = "House_" + String(i).padStart(3, '0');
-                const name = (settings.houses && settings.houses[id]) ? settings.houses[id] : id;
-                const state = statuses[id] || {};
+            // ตรวจสอบว่ามีการแจ้งเตือนค้างอยู่หรือไม่ (IO4 หรือ IO5)
+            const isAlerting = state.panic === true || state.check === true;
+            if (isAlerting) shouldPlaySiren = true;
 
-                const card = document.createElement('div');
-                card.className = `house-card ${state.panic ? 'alert-panic' : (state.check ? 'alert-check' : '')}`;
+            const card = document.createElement('div');
+            card.className = `house-card ${isAlerting ? 'alert-active' : ''}`;
+            
+            card.innerHTML = `
+                <div class="status-tag">${isAlerting ? '⚠️ ตรวจพบเหตุ' : '✅ ปกติ'}</div>
+                <h3 style="margin:10px 0;">${houseName}</h3>
+                <p style="font-size:0.9rem; color:#94a3b8;">${state.message || 'รอกดปุ่มจาก Arduino'}</p>
                 
-                let alertMsg = state.panic ? "!!! ขอความช่วยเหลือ (Panic) !!!" : (state.check ? "แจ้งเตือนตรวจสอบ" : "ปกติ");
-                if (state.panic || state.check) hasAnyAlert = true;
+                ${isAlerting ? `
+                    <button class="btn btn-snooze" onclick="window.runSnooze()">ปิดเสียงชั่วคราว</button>
+                    <button class="btn btn-close" onclick="window.closeJob('${houseId}')">บันทึกการตรวจสอบ</button>
+                ` : ''}
+            `;
+            container.appendChild(card);
+        }
 
-                card.innerHTML = `
-                    <h3>${name}</h3>
-                    <p>${alertMsg}</p>
-                    ${(state.panic || state.check) ? `
-                        <button class="btn btn-snooze" onclick="handleSnooze()">ปิดเสียงชั่วคราว</button>
-                        <button class="btn btn-close" onclick="closeJob('${id}')">ปิดงาน/บันทึกผล</button>
-                    ` : ''}
-                `;
-                container.appendChild(card);
-            }
+        controlSiren(shouldPlaySiren);
+    });
 
-            handleAlarmSound(hasAnyAlert);
-        });
-    }
-
-    // 3. ระบบจัดการเสียง
-    function handleAlarmSound(hasAlert) {
+    // --- ระบบควบคุมเสียงและ Snooze ---
+    function controlSiren(hasAlert) {
         const siren = document.getElementById('sirenSound');
         if (hasAlert && !isSnoozed) {
-            siren.play().catch(e => console.log("User must interact first"));
+            siren.play().catch(() => {});
         } else {
             siren.pause();
         }
     }
 
-    window.handleSnooze = function() {
+    window.runSnooze = () => {
         isSnoozed = true;
-        handleAlarmSound(true); // จะหยุดเพราะ isSnoozed เป็น true
-        const duration = (settings.snooze_duration || 30) * 1000;
+        controlSiren(true); // จะหยุดเพราะ isSnoozed เป็น true
+        
+        // ดึงเวลา Snooze จากอาเรย์ (ตัวอย่างดึงค่าแรก หรือคำนวณตามต้องการ)
+        const timeInSeconds = (appSettings.SnoozeTimes ? appSettings.SnoozeTimes[0] : 30);
         
         clearTimeout(snoozeTimer);
         snoozeTimer = setTimeout(() => {
             isSnoozed = false;
-            // เมื่อหมดเวลา ระบบจะกลับไปตรวจสอบ Alarm อัตโนมัติจาก onValue
-        }, duration);
-        alert(`ปิดเสียงชั่วคราว ${settings.snooze_duration} วินาที`);
+            // เมื่อหมดเวลา ระบบจะกลับมาดังใหม่เองเพราะ onValue จะทำงานอีกรอบ
+        }, timeInSeconds * 1000);
+        
+        alert(`ปิดเสียงชั่วคราวเป็นเวลา ${timeInSeconds} วินาที`);
     };
 
-    window.closeJob = function(houseId) {
-        // ในที่นี้คือการ Reset ค่ากลับเป็น false ใน Firebase
+    window.closeJob = (id) => {
+        // อัปเดต Firebase ให้กลับเป็นปกติ (Latch Alarm จะหายเมื่อกดปุ่มนี้)
         const updates = {};
-        updates[`Status/${houseId}/panic`] = false;
-        updates[`Status/${houseId}/check`] = false;
-        updates[`Status/${houseId}/message`] = "ปกติ";
+        updates[`Status/${id}/panic`] = false;
+        updates[`Status/${id}/check`] = false;
+        updates[`Status/${id}/message`] = "ตรวจสอบเรียบร้อย";
 
         update(ref(db), updates).then(() => {
-            alert("บันทึกการตรวจสอบเรียบร้อย");
+            alert("บันทึกผลการตรวจสอบบ้าน " + id + " สำเร็จ");
         });
     };
 
-    function applyTheme(mode) {
-        if(mode === 'dark') document.body.setAttribute('data-theme', 'dark');
-        else document.body.removeAttribute('data-theme');
-    }
-
+    // นาฬิกา
     setInterval(() => {
         document.getElementById('clock').innerText = new Date().toLocaleTimeString('th-TH');
     }, 1000);
